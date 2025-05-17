@@ -1,0 +1,24 @@
+{
+  "name": "EightyCCTV-core",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.11.0",
+  "dependencies": {
+    "bun": "^1.2.13",
+    "bunrest": "^1.3.8",
+    "figlet": "^1.8.1",
+    "pg": "^8.16.0",
+    "typescript": "^5.8.3"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.13",
+    "@types/figlet": "^1.7.0"
+  }
+}
