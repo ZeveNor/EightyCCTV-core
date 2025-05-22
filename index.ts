@@ -1,16 +1,17 @@
-import server from 'bunrest';
-const app = server();
+import express from "express";
+import authRoutes from "./src/routes/auth.routes";
+import bodyParser from "body-parser";
+import dotenv from "dotenv";
 
-import { testRouter } from './src/routes/testRoute';
-import { testDBRouter } from './src/routes/testPostgresqlRoute';
+dotenv.config();
 
-app.use('/api/test', testRouter);
-app.use('/api/testDB', testDBRouter);
+const app = express();
+app.use(bodyParser.json());
 
-app.get('/', (req: any, res: any): void => { 
-  res.status(200).json({ status: "200", message: "Server is Alive!" });
+// routes
+app.use("/api/auth", authRoutes);
+
+// server
+app.listen(3000, () => {
+  console.log("Server running at http://localhost:3000");
 });
-
-app.listen(3000, (): void => {
-  console.log("Server started on port 3000");
- })
