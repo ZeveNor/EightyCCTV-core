@@ -1,16 +1,40 @@
-import server from 'bunrest';
-const app = server();
+import express from "express";
+import cors from "cors";
+import bodyParser from "body-parser";
+import dotenv from "dotenv";
+import { Server } from "socket.io";
+import http from "http";
+import slotRoutes from "./src/routes/slot.routes";
+import authRoutes from "./src/routes/auth.routes";
+import adminRouter from "./src/routes/admin.routes";
+import securityRouter from "./src/routes/security.routes";
 
-import { testRouter } from './src/routes/testRoute';
-import { testDBRouter } from './src/routes/testPostgresqlRoute';
+dotenv.config();
 
-app.use('/api/test', testRouter);
-app.use('/api/testDB', testDBRouter);
+const app = express();
+const PORT = process.env.PORT;
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: "*" } });
 
-app.get('/', (req: any, res: any): void => { 
-  res.status(200).json({ status: "200", message: "Server is Alive!" });
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.json());
+
+
+app.use((req: any, res, next) => {
+  req.io = io;
+  next();
 });
 
-app.listen(3000, (): void => {
-  console.log("Server started on port 3000");
- })
+app.use("/api/slots", slotRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRouter);
+app.use("/api/security", securityRouter);
+
+io.on("connection", (socket) => {
+  console.log("Client connected:", socket.id);
+});
+
+server.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
