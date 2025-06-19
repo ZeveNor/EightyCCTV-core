@@ -1,24 +1,25 @@
-import { Request, Response } from "express";
-import * as userService from "../services/user.service";
+import { getUserProfile, updateUserProfile } from "../services/user.service";
+import { requireAuth } from "../middleware/auth";
 
-export async function getMyProfile(req: Request, res: Response) {
-  const id = req.user?.id;
+export async function handleUserRoutes(req: Request): Promise<Response> {
+  const user = requireAuth(req);
+  if (user instanceof Response) return user;
 
-  if (!id)  res.status(401).json({ message: "Unauthorized" });
+  const url = new URL(req.url);
 
-  const user = await userService.getUserProfile(Number(id));
-  if (!user)  res.status(404).json({ message: "User not found" });
+  // GET /api/user/me
+  if (req.method === "GET" && url.pathname === "/api/user/me") {
+    const profile = await getUserProfile(Number(user.id));
+    if (!profile) return Response.json({ message: "User not found" }, { status: 404 });
+    return Response.json(profile);
+  }
 
-  res.json(user);
+  // PUT /api/user/me
+  if (req.method === "PUT" && url.pathname === "/api/user/me") {
+    const body = await req.json();
+    await updateUserProfile(Number(user.id), body);
+    return Response.json({ message: "Profile updated" });
+  }
+
+  return new Response("Not found", { status: 404 });
 }
-
-export async function updateMyProfile(req: Request, res: Response) {
-  const id = req.user?.id;
-  if (!id)  res.status(401).json({ message: "Unauthorized" });
-
-  const data = req.body;
-  await userService.updateUserProfile(Number(id), data);
-  res.json({ message: "Profile updated" });
-}
-
-

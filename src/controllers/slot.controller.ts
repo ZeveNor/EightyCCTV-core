@@ -1,31 +1,54 @@
-import { Request, Response } from "express";
 import * as slotService from "../services/slot.service";
+import { verifyToken } from "../utils/jwt";
 
-export async function updateSlotStatus(req: Request, res: Response) {
-  const { status } = req.body;
-  if (!Array.isArray(status)) {
-    res.status(400).json({ error: "Invalid status data" });
-    return 
+export async function handleSlotRoutes(
+  req: Request,
+  clients?: Set<Bun.ServerWebSocket<{ upgrade: true }>>
+): Promise<Response> {
+  const url = new URL(req.url);
+
+  // Auth (ทุก role)
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return Response.json({ message: "No token provided" }, { status: 401 });
   }
+  const token = authHeader.split(" ")[1];
   try {
-    const slots = await slotService.updateSlotStatus(status);
-    // ส่ง event ผ่าน socket.io ถ้ามี io ใน req
-    if ((req as any).io) {
-      (req as any).io.emit("slots_update", slots);
+    verifyToken(token);
+  } catch {
+    return Response.json({ message: "Invalid token" }, { status: 401 });
+  }
+
+  // POST /api/slots/status
+  if (req.method === "POST" && url.pathname === "/api/slots/status") {
+    const body = await req.json();
+    if (!Array.isArray(body.status)) {
+      return Response.json({ error: "Invalid status data" }, { status: 400 });
     }
-    res.status(200).json({ message: "Updated slot status in DB" });
-  } catch (err) {
-    console.error("Error updating DB:", err);
-    res.status(500).json({ error: "Database update failed" });
+    try {
+      const slots = await slotService.updateSlotStatus(body.status);
+      // Broadcast ไปยังทุก client ที่เชื่อมต่อ WebSocket
+  if (clients) {
+    const msg = JSON.stringify({ type: "slots_update", slots });
+      for (const ws of clients) {
+        if (ws.readyState === 1) ws.send(msg);
+      }
+    }
+      return Response.json({ message: "Updated slot status in DB", slots });
+    } catch {
+      return Response.json({ error: "Database update failed" }, { status: 500 });
+    }
   }
-}
 
-export async function getAllSlots(req: Request, res: Response) {
-  try {
-    const slots = await slotService.getAllSlots();
-    res.json(slots);
-  } catch (err) {
-    console.error("Error fetching slot status:", err);
-    res.status(500).json({ error: "Database fetch failed" });
+  // GET /api/slots
+  if (req.method === "GET" && url.pathname === "/api/slots") {
+    try {
+      const slots = await slotService.getAllSlots();
+      return Response.json(slots);
+    } catch {
+      return Response.json({ error: "Database fetch failed" }, { status: 500 });
+    }
   }
+  
+  return new Response("Not found", { status: 404 });
 }

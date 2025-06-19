@@ -1,95 +1,63 @@
-import { Request, Response, NextFunction } from "express";
 import { verifyToken } from "../utils/jwt";
 import { JwtPayloadCustom } from "../types/jwt";
 
-// ✅ 1. อนุญาตทุกคนที่ login แล้ว (มี token ที่ถูกต้อง)
-export function authUser(req: Request, res: Response, next: NextFunction): void {
-  const authHeader = req.headers.authorization;
 
+// ✅ 1. ตรวจสอบ token (อนุญาตทุกคนที่ login แล้ว)
+export function requireAuth(req: Request): JwtPayloadCustom | Response {
+  const authHeader = req.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
-    res.status(401).json({ message: "No token provided" });
-    return;
+    return Response.json({ message: "No token provided" }, { status: 401 });
   }
-
   const token = authHeader.split(" ")[1];
-
   try {
     const decoded = verifyToken(token) as JwtPayloadCustom;
-
     if (typeof decoded !== "object" || !decoded.role || !decoded.id) {
-      res.status(401).json({ message: "Invalid token format" });
-      return;
+      return Response.json({ message: "Invalid token format" }, { status: 401 });
     }
-
-    req.user = decoded;
-    next();
-  } catch (error) {
-    res.status(401).json({ message: "Invalid token" });
+    return decoded;
+  } catch {
+    return Response.json({ message: "Invalid token" }, { status: 401 });
   }
 }
 
-// ✅ 2. อนุญาตเฉพาะ role เดียวเท่านั้น เช่น authRole("admin")
-export function authRole(requiredRole: "admin" | "user" | "security") {
-  return function (req: Request, res: Response, next: NextFunction): void {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader?.startsWith("Bearer ")) {
-      res.status(401).json({ message: "No token provided" });
-      return;
+// ✅ 2. ตรวจสอบ role เดียว เช่น requireRole("admin")
+export function requireRole(req: Request, requiredRole: "admin" | "user" | "security"): JwtPayloadCustom | Response {
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return Response.json({ message: "No token provided" }, { status: 401 });
+  }
+  const token = authHeader.split(" ")[1];
+  try {
+    const decoded = verifyToken(token) as JwtPayloadCustom;
+    if (typeof decoded !== "object" || !decoded.role || !decoded.id) {
+      return Response.json({ message: "Invalid token format" }, { status: 401 });
     }
-
-    const token = authHeader.split(" ")[1];
-
-    try {
-      const decoded = verifyToken(token) as JwtPayloadCustom;
-
-      if (typeof decoded !== "object" || !decoded.role || !decoded.id) {
-        res.status(401).json({ message: "Invalid token format" });
-        return;
-      }
-
-      if (decoded.role !== requiredRole) {
-        res.status(403).json({ message: "Forbidden" });
-        return;
-      }
-
-      req.user = decoded;
-      next();
-    } catch (error) {
-      res.status(401).json({ message: "Invalid token" });
+    if (decoded.role !== requiredRole) {
+      return Response.json({ message: "Forbidden" }, { status: 403 });
     }
-  };
+    return decoded;
+  } catch {
+    return Response.json({ message: "Invalid token" }, { status: 401 });
+  }
 }
 
-// ✅ 3. อนุญาตหลาย role ได้ เช่น authRoles("admin", "security")
-export function authRoles(...allowedRoles: ("admin" | "user" | "security")[]) {
-  return function (req: Request, res: Response, next: NextFunction): void {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader?.startsWith("Bearer ")) {
-      res.status(401).json({ message: "No token provided" });
-      return;
+// ✅ 3. ตรวจสอบหลาย role เช่น requireRoles(req, "admin", "security")
+export function requireRoles(req: Request, ...allowedRoles: ("admin" | "user" | "security")[]): JwtPayloadCustom | Response {
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return Response.json({ message: "No token provided" }, { status: 401 });
+  }
+  const token = authHeader.split(" ")[1];
+  try {
+    const decoded = verifyToken(token) as JwtPayloadCustom;
+    if (typeof decoded !== "object" || !decoded.role || !decoded.id) {
+      return Response.json({ message: "Invalid token format" }, { status: 401 });
     }
-
-    const token = authHeader.split(" ")[1];
-
-    try {
-      const decoded = verifyToken(token) as JwtPayloadCustom;
-
-      if (typeof decoded !== "object" || !decoded.role || !decoded.id) {
-        res.status(401).json({ message: "Invalid token format" });
-        return;
-      }
-
-      if (!allowedRoles.includes(decoded.role)) {
-        res.status(403).json({ message: "Forbidden" });
-        return;
-      }
-
-      req.user = decoded;
-      next();
-    } catch (error) {
-      res.status(401).json({ message: "Invalid token" });
+    if (!allowedRoles.includes(decoded.role)) {
+      return Response.json({ message: "Forbidden" }, { status: 403 });
     }
-  };
+    return decoded;
+  } catch {
+    return Response.json({ message: "Invalid token" }, { status: 401 });
+  }
 }

@@ -1,72 +1,73 @@
-import { Request, Response } from "express";
-import { registerService } from "../services/auth.service";
-import { loginService } from "../services/auth.service";
-import { sendVerification, verifyEmail } from "../services/auth.service";
-import { sendResetPassword, resetPassword } from "../services/auth.service";
+import { registerService, loginService, sendVerification, verifyEmail, sendResetPassword, resetPassword } from "../services/auth.service";
 
+export async function handleAuthRoutes(req: Request): Promise<Response> {
+  const url = new URL(req.url);
 
-export const register = async (req: Request, res: Response) => {
-  const { name, email, password, phone_number,confirmPassword} = req.body;
-
-  try {
-    const user = await registerService({ name, email, password, phone_number,confirmPassword });
-    res.status(201).json({ user })
-    return ;
-  } catch (err: any) {
-    res.status(400).json({ message: err.message })
-    return ;
+  // Register
+  if (req.method === "POST" && url.pathname === "/api/auth/register") {
+    const body = await req.json();
+    try {
+      const user = await registerService(body);
+      return Response.json({ user }, { status: 201 });
+    } catch (err: any) {
+      return Response.json({ message: err.message }, { status: 400 });
+    }
   }
-};
 
-export const login = async (req: Request, res: Response) => {
-  const { email, password } = req.body;
-
-  try {
-    const result = await loginService(email, password);
-    res.json({ token: result.token, role: result.role, name: result.name })
-    return ;
-  } catch (err: any) {
-    res.status(400).json({ message: err.message })
-    return ;
+  // Login
+  if (req.method === "POST" && url.pathname === "/api/auth/login") {
+    const body = await req.json();
+    try {
+      const result = await loginService(body.email, body.password);
+      return Response.json(result);
+    } catch (err: any) {
+      return Response.json({ message: err.message }, { status: 400 });
+    }
   }
-};
 
-export const requestEmailVerification = async (req: Request, res: Response) => {
-  const { email } = req.body;
-  try {
-    await sendVerification(email);
-    res.json({ message: "Verification email sent" });
-  } catch (err: any) {
-    res.status(400).json({ message: err.message });
+  // Request email verification
+  if (req.method === "POST" && url.pathname === "/api/auth/verify-request") {
+    const body = await req.json();
+    try {
+      await sendVerification(body.email);
+      return Response.json({ message: "Verification email sent" });
+    } catch (err: any) {
+      return Response.json({ message: err.message }, { status: 400 });
+    }
   }
-};
 
-export const confirmEmail = async (req: Request, res: Response) => {
-  const { token } = req.query;
-  try {
-    await verifyEmail(token as string);
-    res.json({ message: "Email verified" });
-  } catch (err: any) {
-    res.status(400).json({ message: err.message });
+  // Confirm email
+  if (req.method === "GET" && url.pathname === "/api/auth/verify-email") {
+    const token = new URL(req.url).searchParams.get("token");
+    try {
+      await verifyEmail(token!);
+      return Response.json({ message: "Email verified" });
+    } catch (err: any) {
+      return Response.json({ message: err.message }, { status: 400 });
+    }
   }
-};
 
-export const requestPasswordReset = async (req: Request, res: Response) => {
-  const { email } = req.body;
-  try {
-    await sendResetPassword(email);
-    res.json({ message: "Reset password email sent" });
-  } catch (err: any) {
-    res.status(400).json({ message: err.message });
+  // Forgot password
+  if (req.method === "POST" && url.pathname === "/api/auth/forgot-password") {
+    const body = await req.json();
+    try {
+      await sendResetPassword(body.email);
+      return Response.json({ message: "Reset password email sent" });
+    } catch (err: any) {
+      return Response.json({ message: err.message }, { status: 400 });
+    }
   }
-};
 
-export const confirmResetPassword = async (req: Request, res: Response) => {
-  const { token, newPassword } = req.body;
-  try {
-    await resetPassword(token, newPassword);
-    res.json({ message: "Password reset successful" });
-  } catch (err: any) {
-    res.status(400).json({ message: err.message });
+  // Reset password
+  if (req.method === "POST" && url.pathname === "/api/auth/reset-password") {
+    const body = await req.json();
+    try {
+      await resetPassword(body.token, body.newPassword);
+      return Response.json({ message: "Password reset successful" });
+    } catch (err: any) {
+      return Response.json({ message: err.message }, { status: 400 });
+    }
   }
-};
+
+  return new Response("Not found", { status: 404 });
+}

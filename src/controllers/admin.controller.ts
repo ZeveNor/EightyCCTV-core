@@ -1,56 +1,68 @@
-import { Request, Response } from "express";
 import * as adminService from "../services/admin.service";
+import { requireRole } from "../middleware/auth";
 
-export async function getAllUsers(req: Request , res: Response) {
-  try {
-    const users = await adminService.getAllUsers();
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ message: "Internal server error" });
-  }
-}
+export async function handleAdminRoutes(req: Request): Promise<Response> {
+  const user = requireRole(req, "admin");
+  if (user instanceof Response) return user;
 
-export async function getUserById(req: Request, res: Response) {
-  try {
-    const id = parseInt(req.params.id);
-    const user = await adminService.getUserById(id);
-    if (!user) {
-      res.status(404).json({ message: "User not found" });
-      return;
+  const url = new URL(req.url);
+
+  // GET /api/admin/users
+  if (req.method === "GET" && url.pathname === "/api/admin/users") {
+    try {
+      const users = await adminService.getAllUsers();
+      return Response.json(users);
+    } catch {
+      return Response.json({ message: "Internal server error" }, { status: 500 });
     }
-    res.json(user);
-  } catch (err) {
-    res.status(500).json({ message: "Internal server error" });
   }
-}
 
-export async function createUser(req: Request, res: Response) {
-  try {
-    const data = req.body;
-    const user = await adminService.createUser(data);
-    res.status(201).json(user);
-  } catch (err) {
-    res.status(500).json({ message: "Internal server error" });
+  // GET /api/admin/users/:id
+  const userIdMatch = url.pathname.match(/^\/api\/admin\/users\/(\d+)$/);
+  if (req.method === "GET" && userIdMatch) {
+    const id = Number(userIdMatch[1]);
+    try {
+      const userData = await adminService.getUserById(id);
+      if (!userData) return Response.json({ message: "User not found" }, { status: 404 });
+      return Response.json(userData);
+    } catch {
+      return Response.json({ message: "Internal server error" }, { status: 500 });
+    }
   }
-}
 
-export async function updateUser(req: Request, res: Response) {
-  try {
-    const id = parseInt(req.params.id);
-    const data = req.body;
-    const user = await adminService.updateUser(id, data);
-    res.json(user);
-  } catch (err) {
-    res.status(500).json({ message: "Internal server error" });
+  // POST /api/admin/users
+  if (req.method === "POST" && url.pathname === "/api/admin/users") {
+    const body = await req.json();
+    try {
+      const userData = await adminService.createUser(body);
+      return Response.json(userData, { status: 201 });
+    } catch {
+      return Response.json({ message: "Internal server error" }, { status: 500 });
+    }
   }
-}
 
-export async function deleteUser(req: Request, res: Response) {
-  try {
-    const id = parseInt(req.params.id);
-    await adminService.deleteUser(id);
-    res.status(204).send();
-  } catch (err) {
-    res.status(500).json({ message: "Internal server error" });
+  // PUT /api/admin/users/:id
+  if (req.method === "PUT" && userIdMatch) {
+    const id = Number(userIdMatch[1]);
+    const body = await req.json();
+    try {
+      const userData = await adminService.updateUser(id, body);
+      return Response.json(userData);
+    } catch {
+      return Response.json({ message: "Internal server error" }, { status: 500 });
+    }
   }
+
+  // DELETE /api/admin/users/:id
+  if (req.method === "DELETE" && userIdMatch) {
+    const id = Number(userIdMatch[1]);
+    try {
+      await adminService.deleteUser(id);
+      return new Response(null, { status: 204 });
+    } catch {
+      return Response.json({ message: "Internal server error" }, { status: 500 });
+    }
+  }
+
+  return new Response("Not found", { status: 404 });
 }
