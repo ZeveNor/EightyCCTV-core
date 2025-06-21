@@ -1,40 +1,62 @@
-import express from "express";
-import cors from "cors";
-import bodyParser from "body-parser";
+import { handleAuthRoutes } from "./src/controllers/auth.controller";
+import { handleUserRoutes } from "./src/controllers/user.controller";
+import { handleAdminRoutes } from "./src/controllers/admin.controller";
+import { handleSlotRoutes } from "./src/controllers/slot.controller";
+import { handleSecurityRoutes } from "./src/controllers/security.controller";
+import { withCORS } from "./src/utils/cors";
 import dotenv from "dotenv";
-import { Server } from "socket.io";
-import http from "http";
-import slotRoutes from "./src/routes/slot.routes";
-import authRoutes from "./src/routes/auth.routes";
-import adminRouter from "./src/routes/admin.routes";
-import securityRouter from "./src/routes/security.routes";
-
 dotenv.config();
 
-const app = express();
-const PORT = process.env.PORT;
-const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const clients = new Set<Bun.ServerWebSocket<{ upgrade: true }>>();
 
-app.use(cors());
-app.use(bodyParser.json());
-app.use(express.json());
+Bun.serve<{ upgrade: true }, {}>({
+  port: Number(process.env.PORT) || 3000,
+  fetch(req, server) {
+    const url = new URL(req.url);
 
+    // CORS preflight
+    if (req.method === "OPTIONS") {
+      return withCORS(new Response(null, { status: 204 }));
+    }
 
-app.use((req: any, res, next) => {
-  req.io = io;
-  next();
-});
+    // WebSocket upgrade
+    if (url.pathname === "/ws") {
+      if (server.upgrade) {
+        server.upgrade(req);
+        return; // หรือ return undefined;
+      }
+      return new Response("Upgrade required", { status: 426 });
+    }
 
-app.use("/api/slots", slotRoutes);
-app.use("/api/auth", authRoutes);
-app.use("/api/admin", adminRouter);
-app.use("/api/security", securityRouter);
+    // API routes
+    if (url.pathname.startsWith("/api/auth")) {
+      return handleAuthRoutes(req).then(withCORS);
+    }
+    if (url.pathname.startsWith("/api/user")) {
+      return handleUserRoutes(req).then(withCORS);
+    }
+    if (url.pathname.startsWith("/api/admin")) {
+      return handleAdminRoutes(req).then(withCORS);
+    }
+    if (url.pathname.startsWith("/api/slots")) {
+      return handleSlotRoutes(req, clients).then(withCORS);
+    }
+    if (url.pathname.startsWith("/api/security")) {
+      return handleSecurityRoutes(req).then(withCORS);
+    }
 
-io.on("connection", (socket) => {
-  console.log("Client connected:", socket.id);
-});
-
-server.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+    return withCORS(new Response("Not found", { status: 404 }));
+  },
+  websocket: {
+    open(ws) {
+      clients.add(ws);
+      ws.send(JSON.stringify({ message: "WebSocket connected" }));
+    },
+    close(ws) {
+      clients.delete(ws);
+    },
+    message(ws, message) {
+      // รับข้อความจาก client
+    },
+  },
 });

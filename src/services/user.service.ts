@@ -2,7 +2,7 @@ import pool from "../models/db";
 
 export async function getUserProfile(id: number) {
   const result = await pool.query(
-    `SELECT id, name, email, role, phone_number, profile_image FROM users WHERE id = $1`,
+    `SELECT id, name, email, role, phone_number FROM users WHERE id = $1`,
     [id]
   );
   return result.rows[0];
