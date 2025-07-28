@@ -27,7 +27,14 @@ Bun.serve<{ upgrade: true }, {}>({
       }
       return new Response("Upgrade required", { status: 426 });
     }
-
+    if (req.method === "GET" && url.pathname.startsWith("/uploads/")) {
+      const filePath = `.${url.pathname}`;
+      try {
+        return new Response(Bun.file(filePath));
+      } catch {
+        return new Response("Not found", { status: 404 });
+      }
+    }
     // API routes
     if (url.pathname.startsWith("/api/auth")) {
       return handleAuthRoutes(req).then(withCORS);
@@ -44,7 +51,6 @@ Bun.serve<{ upgrade: true }, {}>({
     if (url.pathname.startsWith("/api/security")) {
       return handleSecurityRoutes(req).then(withCORS);
     }
-
     return withCORS(new Response("Not found", { status: 404 }));
   },
   websocket: {
@@ -59,4 +65,5 @@ Bun.serve<{ upgrade: true }, {}>({
       // รับข้อความจาก client
     },
   },
+
 });

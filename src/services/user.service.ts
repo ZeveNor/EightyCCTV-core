@@ -8,16 +8,18 @@ export async function getUserProfile(id: number) {
   return result.rows[0];
 }
 
-export async function updateProfileImage(id: number, filename: string) {
-  await pool.query(
-    `UPDATE users SET profile_image = $1, update_at = NOW() WHERE id = $2`,
-    [filename, id]
-  );
-}
-
 export async function updateUserProfile(id: number, data: any) {
   await pool.query(
     `UPDATE users SET name = $1, email = $2, phone_number = $3, update_at = NOW() WHERE id = $4`,
     [data.name, data.email, data.phone_number, id]
+  );
+}
+
+export async function updateProfileImage(id: number, filename: string) {
+  await pool.query(
+    `INSERT INTO user_profiles (user_id, profile_image)
+     VALUES ($1, $2)
+     ON CONFLICT (user_id) DO UPDATE SET profile_image = EXCLUDED.profile_image, updated_at = NOW()`,
+    [id, filename]
   );
 }

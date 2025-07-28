@@ -5,13 +5,13 @@ import json
 import os
 from ultralytics import YOLO
 import requests
-
+import time
 
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|stimeout;10000000"
 model = YOLO('yolo11s.pt')  
-url = "rtsp://admin:L2DF3010@192.168.1.46:554/cam/realmonitor?channel=1&subtype=1"
-# cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
-cap = cv2.VideoCapture('parking1.mp4')
+url = "rtsp://admin:L2DF3010@192.168.139.132:554/cam/realmonitor?channel=1&subtype=1"
+cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
+# cap = cv2.VideoCapture('parking1.mp4')
 SLOTS_FILE = "slots.json"
 CLASS_FILE = "coco.txt"
 
@@ -91,12 +91,47 @@ while True:
                         occupied[i] = True
                         cv2.circle(frame, (cx, cy), 3, (0, 0, 255), -1)  # แสดงเฉพาะจุดกลาง
         # --- ส่งสถานะไป backend ---
+    
+def get_token():
+    login_data = {
+        "email": "admin3@example.com",
+        "password": "123456"
+    }
     try:
-        response = requests.post("http://localhost:5000/api/slots/status", json={"status": occupied})
+        resp = requests.post("http://localhost:3000/api/auth/login", json=login_data)
+        if resp.status_code == 200:
+            return resp.json()["token"]
+        else:
+            print("Login failed:", resp.text)
+            return None
+    except Exception as e:
+        print("Login error:", e)
+        return None
+
+token = get_token()
+token_time = time.time()
+
+while True:
+    # ...อ่าน frame, ตรวจจับ ฯลฯ...
+
+    # ถ้า token หมดอายุ (เช่น 1 ชม.) ให้ login ใหม่
+    if not token or (time.time() - token_time > 3500):
+        token = get_token()
+        token_time = time.time()
+
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+
+    try:
+        response = requests.post(
+            "http://localhost:3000/api/slots/status",
+            json={"status": occupied},
+            headers=headers
+        )
         if response.status_code != 200:
             print("Failed to update backend:", response.status_code)
     except Exception as e:
         print("Error sending status:", e)
+
 
 
     # วาดช่องจอด
@@ -112,7 +147,7 @@ while True:
                 (0, 255, 255), 2)
 
     cv2.imshow("Parking Detection", frame)
-    if cv2.waitKey(0) & 0xFF == 27:
+    if cv2.waitKey(1) & 0xFF == 27:
         break
 
 cap.release()
