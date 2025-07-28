@@ -9,7 +9,7 @@ dotenv.config();
 
 const clients = new Set<Bun.ServerWebSocket<{ upgrade: true }>>();
 
-Bun.serve<{ upgrade: true }, {}>({
+const server = Bun.serve<{ upgrade: true }, {}>({
   port: Number(process.env.PORT) || 3000,
   fetch(req, server) {
     const url = new URL(req.url);
@@ -35,6 +35,7 @@ Bun.serve<{ upgrade: true }, {}>({
         return new Response("Not found", { status: 404 });
       }
     }
+    
     // API routes
     if (url.pathname.startsWith("/api/auth")) {
       return handleAuthRoutes(req).then(withCORS);
@@ -53,6 +54,7 @@ Bun.serve<{ upgrade: true }, {}>({
     }
     return withCORS(new Response("Not found", { status: 404 }));
   },
+  
   websocket: {
     open(ws) {
       clients.add(ws);
@@ -67,3 +69,5 @@ Bun.serve<{ upgrade: true }, {}>({
   },
 
 });
+
+console.log(`Server running at http://localhost:${server.port}`);
