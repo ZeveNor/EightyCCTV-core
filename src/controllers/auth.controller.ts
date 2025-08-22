@@ -1,4 +1,4 @@
-import { registerService, loginService, sendVerification, verifyEmail, sendResetPassword, resetPassword } from "../services/auth.service";
+import { registerService, loginService, sendVerification,sendResetPassword, resetPassword } from "../services/auth.service";
 
 export async function handleAuthRoutes(req: Request): Promise<Response> {
   const url = new URL(req.url);
@@ -25,27 +25,19 @@ export async function handleAuthRoutes(req: Request): Promise<Response> {
     }
   }
 
-  // Request email verification
-  if (req.method === "POST" && url.pathname === "/api/auth/verify-request") {
-    const body = await req.json();
-    try {
-      await sendVerification(body.email);
-      return Response.json({ message: "Verification email sent" });
-    } catch (err: any) {
-      return Response.json({ message: err.message }, { status: 400 });
-    }
+// Request OTP
+if (req.method === "POST" && url.pathname === "/api/auth/verify-request") {
+  const body = await req.json();
+  try {
+    await sendVerification(body.email);
+    return Response.json({ message: "OTP ถูกส่งไปที่อีเมลแล้ว" });
+  } catch (err: any) {
+    return Response.json({ message: err.message }, { status: 400 });
   }
+}
 
-  // Confirm email
-  if (req.method === "GET" && url.pathname === "/api/auth/verify-email") {
-    const token = new URL(req.url).searchParams.get("token");
-    try {
-      await verifyEmail(token!);
-      return Response.json({ message: "Email verified" });
-    } catch (err: any) {
-      return Response.json({ message: err.message }, { status: 400 });
-    }
-  }
+
+
 
   // Forgot password
   if (req.method === "POST" && url.pathname === "/api/auth/forgot-password") {
