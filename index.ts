@@ -6,7 +6,7 @@ dotenv.config();
 
 import { handleSlotRoutes } from "./src/controllers/slot.controller";
 import { handleAuthRoutes } from "./src/controllers/auth.controller";
-
+import { handleUserRoutes } from "./src/controllers/user.controller";
 // Import WebSocket utilities
 import {
   startRtspStreamFor,
@@ -81,7 +81,9 @@ const server = Bun.serve<{ upgrade: true; rtsp?: boolean; camKey?: string }, {}>
     if (url.pathname.startsWith("/api/slots")) {
       return handleSlotRoutes(req, clients).then(withCORS);
     }
-
+    if (url.pathname.startsWith("/api/user")) {
+      return handleUserRoutes(req);
+    }
   },
 
   websocket: {
