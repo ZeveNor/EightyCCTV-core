@@ -30,7 +30,7 @@ jobs:
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
           status: ${{ job.status }}
-          description: ${{ github.event.head_commit.message }}
+          # description: ${{ github.event.head_commit.message }}
           color: 0x00FF00
           url: "https://github.com/ZeveNor/EightyCCTV-core"
           title: "[Backend] EightyCCTV."

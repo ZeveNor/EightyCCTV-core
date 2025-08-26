@@ -49,20 +49,21 @@ export const registerService = async ({
 
   // ลบ OTP ที่ใช้แล้ว
   await pool.query("DELETE FROM email_verifications WHERE email = $1", [email]);
-
   return result.rows[0];
 };
 
 
 // login
+// POST: /api/auth/login
 export async function loginService(email: string, password: string) {
   const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
   const user = result.rows[0];
+
   if (!user) throw new Error("อีเมลหรือรหัสไม่ถูกต้อง");
   const match = await bcrypt.compare(password, user.password);
   if (!match) throw new Error("อีเมลหรือรหัสไม่ถูกต้อง");
   const token = generateToken({ id: user.id, role: user.role });
-  return { token, role: user.role, name: user.name };
+  return { role: user.role, name: user.name, token };
 }
 
 // ส่งอีเมลยืนยัน
@@ -90,9 +91,6 @@ export async function sendVerification(email: string) {
     `<p>รหัส OTP ของคุณคือ: <b>${otp}</b> (หมดอายุใน 10 นาที)</p>`
   );
 }
-
-
-
 
 
 // ส่งอีเมล reset password
