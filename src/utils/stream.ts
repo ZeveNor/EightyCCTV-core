@@ -11,13 +11,15 @@ export function removeRtspClientFrom(camKey: string, ws: Bun.ServerWebSocket<{ u
   rtspClientSets[camKey]?.delete(ws);
 }
 
-export function startRtspStreamFor(camKey: string, rtspUrl: string) {
+// rtsp://admin:L2DF3010@192.168.1.6:554/cam/realmonitor?channel=1&subtype=0
+export function startRtspStreamFor(camKey: string, rtspUser: string, rtspPassword: string, rtspIP: string, rtspPort: string, rtspQuality: string = "0") {
   if (!rtspClientSets[camKey]) rtspClientSets[camKey] = new Set();
-
+  const rtspStringURL = "rtsp://" + rtspUser + ":" + rtspPassword + "@" + rtspIP + ":" + rtspPort + "/cam/realmonitor?channel=1&subtype=" + rtspQuality;
+  
   const ffmpeg = Bun.spawn([
     "ffmpeg",
     "-rtsp_transport", "tcp",
-    "-i", rtspUrl,
+    "-i", rtspStringURL,
     "-f", "mjpeg",
     "-q:v", "5",
     "pipe:1"
@@ -57,6 +59,6 @@ export function startRtspStreamFor(camKey: string, rtspUrl: string) {
   readStream();
 
   ffmpeg.exited.then(() => {
-    setTimeout(() => startRtspStreamFor(camKey, rtspUrl), 1000);
+    setTimeout(() => startRtspStreamFor(camKey, rtspUser, rtspPassword, rtspIP, rtspPort,rtspQuality), 1000);
   });
 }

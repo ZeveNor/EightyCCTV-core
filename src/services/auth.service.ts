@@ -5,42 +5,45 @@ import { sendMail } from "../utils/email";
 import crypto from "crypto";
 
 // สมัครสมาชิก
-export const registerService = async ({
-  name,
-  email,
-  password,
-  phone_number,
-  confirmPassword
-}: {
-  name: string;
-  email: string;
-  password: string;
-  phone_number: string;
-  confirmPassword: string;
-}) => {
-  const exist = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-  if (exist.rows.length > 0) throw new Error("Email นี้ถูกใช้แล้ว");
-  if (password !== confirmPassword) throw new Error("ยืนยันรหัสไม่ถูกต้อง");
+// POST: /api/auth/register
+export const registerService = async (
+  {
+    name,
+    email,
+    password,
+    phone_number,
+  }: {
+    name: string;
+    email: string;
+    password: string;
+    phone_number: string;
+  }
+) => {
+  const isEmailExist = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+
+  if (isEmailExist.rows.length > 0) throw new Error("Email นี้ถูกใช้แล้ว");
   const hashedPassword = await bcrypt.hash(password, 10);
 
-const result = await pool.query(
-  `INSERT INTO users (name, email, password, phone_number, status)
+  const result = await pool.query(
+    `INSERT INTO users (name, email, password, phone_number, status)
    VALUES ($1, $2, $3, $4, 0) RETURNING id, name, email, phone_number, role, status`,
-  [name, email, hashedPassword, phone_number]
-);
+    [name, email, hashedPassword, phone_number]
+  );
 
   return result.rows[0];
 };
 
 // login
+// POST: /api/auth/login
 export async function loginService(email: string, password: string) {
   const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
   const user = result.rows[0];
+
   if (!user) throw new Error("อีเมลหรือรหัสไม่ถูกต้อง");
   const match = await bcrypt.compare(password, user.password);
   if (!match) throw new Error("อีเมลหรือรหัสไม่ถูกต้อง");
   const token = generateToken({ id: user.id, role: user.role });
-  return { token, role: user.role, name: user.name };
+  return { role: user.role, name: user.name, token };
 }
 
 // ส่งอีเมลยืนยัน

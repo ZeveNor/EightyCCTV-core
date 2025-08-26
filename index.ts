@@ -1,26 +1,43 @@
+import { withCORS } from "./src/utils/cors";
+import dotenv from "dotenv";
+dotenv.config();
+
+// Import controllers
 import { handleAuthRoutes } from "./src/controllers/auth.controller";
 import { handleUserRoutes } from "./src/controllers/user.controller";
 import { handleAdminRoutes } from "./src/controllers/admin.controller";
 import { handleSlotRoutes } from "./src/controllers/slot.controller";
 import { handleSecurityRoutes } from "./src/controllers/security.controller";
 
+// Import WebSocket utilities
 import {
   startRtspStreamFor,
   addRtspClientTo,
   removeRtspClientFrom,
 } from "./src/utils/stream";
 
-import { withCORS } from "./src/utils/cors";
-import dotenv from "dotenv";
-dotenv.config();
+// Start RTSP streams for cameras
+startRtspStreamFor(
+  "cam1",
+  process.env.RTSP_USER?? "admin",
+  process.env.RTSP_PASS?? "L2DF3010",
+  process.env.RTSP_IP?? "192.168.1.46",
+  process.env.RTSP_PORT?? "554",
+  process.env.RTSP_QUALITY?? "0"
+);
+startRtspStreamFor(
+  "cam2",
+  process.env.RTSP_USER?? "admin",
+  process.env.RTSP_PASS?? "L2DF3010",
+  process.env.RTSP_IP?? "192.168.1.46",
+  process.env.RTSP_PORT?? "554",
+  process.env.RTSP_QUALITY?? "0"
+);
 
-const RTSP_URL_CAMERA_1 = "rtsp://admin:L2DF3010@192.168.1.6:554/cam/realmonitor?channel=1&subtype=0";
-const RTSP_URL_CAMERA_2 = "rtsp://admin:L2DF3010@examplecam2:554/cam/realmonitor?channel=1&subtype=0";
-startRtspStreamFor("cam1", RTSP_URL_CAMERA_1);
-startRtspStreamFor("cam2", RTSP_URL_CAMERA_2);
-
+// Create a WebSocket server
 const clients = new Set<Bun.ServerWebSocket<{ upgrade: true; rtsp?: boolean }>>();
 
+// Serve API and handle WebSocket connections
 const server = Bun.serve<{ upgrade: true; rtsp?: boolean; camKey?: string }, {}>({
   port: Number(process.env.PORT) || 3000,
   fetch(req, server) {
@@ -89,9 +106,11 @@ const server = Bun.serve<{ upgrade: true; rtsp?: boolean; camKey?: string }, {}>
     open(ws) {
       if (ws.data?.rtsp && ws.data?.camKey) {
         addRtspClientTo(ws.data.camKey, ws);
+        console.log(`RTSP streaming on (${ws.data.camKey})`);
         ws.send(JSON.stringify({ message: `RTSP WebSocket connected (${ws.data.camKey})` }));
       } else {
         clients.add(ws);
+        console.log(`WebSocket connected`);
         ws.send(JSON.stringify({ message: "WebSocket connected" }));
       }
     },
