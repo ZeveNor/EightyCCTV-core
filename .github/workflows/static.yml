@@ -21,13 +21,16 @@ jobs:
       name: github-notifications-discord
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Send webhook
         uses: sarisia/actions-status-discord@v1
         if: always()
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
           status: ${{ job.status }}
-          description: "New update on BackEND Reposity! Merged"
+          # description: ${{ github.event.head_commit.message }}
           color: 0x00FF00
           url: "https://github.com/ZeveNor/EightyCCTV-core"
           title: "[Backend] EightyCCTV."

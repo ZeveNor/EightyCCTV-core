@@ -1,64 +1,43 @@
-import { registerService, loginService, sendVerification,sendResetPassword, resetPassword } from "../services/auth.service";
+import { sendOtp, verifyOtp, register, login, forgotPassword, resetPassword } from "../services/auth.service";
+import { withCORS } from "../utils/cors";
 
 export async function handleAuthRoutes(req: Request): Promise<Response> {
   const url = new URL(req.url);
 
-  // Register
-  if (req.method === "POST" && url.pathname === "/api/auth/register") {
+  if (url.pathname === "/api/auth/send-otp" && req.method === "POST") {
     const body = await req.json();
-    try {
-      const user = await registerService(body);
-      return Response.json({ user }, { status: 201 });
-    } catch (err: any) {
-      return Response.json({ message: err.message }, { status: 400 });
-    }
+    const result = await sendOtp(body);
+    return withCORS(Response.json({ result }));
   }
 
-  // Login
-  if (req.method === "POST" && url.pathname === "/api/auth/login") {
+  if (url.pathname === "/api/auth/verify-otp" && req.method === "POST") {
     const body = await req.json();
-    try {
-      const result = await loginService(body.email, body.password);
-      return Response.json(result);
-    } catch (err: any) {
-      return Response.json({ message: err.message }, { status: 400 });
-    }
+    const result = await verifyOtp(body);
+    return withCORS(Response.json({ result }));
   }
 
-// Request OTP
-if (req.method === "POST" && url.pathname === "/api/auth/verify-request") {
-  const body = await req.json();
-  try {
-    await sendVerification(body.email);
-    return Response.json({ message: "OTP ถูกส่งไปที่อีเมลแล้ว" });
-  } catch (err: any) {
-    return Response.json({ message: err.message }, { status: 400 });
-  }
-}
-
-
-
-
-  // Forgot password
-  if (req.method === "POST" && url.pathname === "/api/auth/forgot-password") {
+  if (url.pathname === "/api/auth/register" && req.method === "POST") {
     const body = await req.json();
-    try {
-      await sendResetPassword(body.email);
-      return Response.json({ message: "Reset password email sent" });
-    } catch (err: any) {
-      return Response.json({ message: err.message }, { status: 400 });
-    }
+    const result = await register(body);
+    return withCORS(Response.json({ result }));
   }
 
-  // Reset password
-  if (req.method === "POST" && url.pathname === "/api/auth/reset-password") {
+  if (url.pathname === "/api/auth/login" && req.method === "POST") {
     const body = await req.json();
-    try {
-      await resetPassword(body.token, body.newPassword);
-      return Response.json({ message: "Password reset successful" });
-    } catch (err: any) {
-      return Response.json({ message: err.message }, { status: 400 });
-    }
+    const result = await login(body);
+    return withCORS(Response.json({ result }));
+  }
+
+  if (url.pathname === "/api/auth/forgot" && req.method === "POST") {
+    const body = await req.json();
+    const result = await forgotPassword(body);
+    return withCORS(Response.json({ result }));
+  }
+
+  if (url.pathname === "/api/auth/reset" && req.method === "POST") {
+    const body = await req.json();
+    const result = await resetPassword(body);
+    return withCORS(Response.json({ result }));
   }
 
   return new Response("Not found", { status: 404 });
