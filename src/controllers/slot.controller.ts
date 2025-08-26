@@ -1,5 +1,5 @@
 import * as slotService from "../services/slot.service";
-import { verifyToken } from "../utils/jwt";
+
 
 export async function handleSlotRoutes(
   req: Request,
@@ -7,17 +7,7 @@ export async function handleSlotRoutes(
 ): Promise<Response> {
   const url = new URL(req.url);
 
-  // Auth (ทุก role)
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return Response.json({ message: "No token provided" }, { status: 401 });
-  }
-  const token = authHeader.split(" ")[1];
-  try {
-    verifyToken(token);
-  } catch {
-    return Response.json({ message: "Invalid token" }, { status: 401 });
-  }
+
 
   // POST /api/slots/status
   if (req.method === "POST" && url.pathname === "/api/slots/status") {

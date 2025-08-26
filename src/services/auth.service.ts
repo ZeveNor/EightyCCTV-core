@@ -1,133 +1,170 @@
-import bcrypt from "bcrypt";
-import pool from "../models/db";
-import { generateToken } from "../utils/jwt";
+import db from "../models/db";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { sendMail } from "../utils/email";
-import crypto from "crypto";
 
-// สมัครสมาชิก
-export const registerService = async ({
-  name,
-  email,
-  password,
-  phone_number,
-  confirmPassword,
-  otp
-}: {
-  name: string;
-  email: string;
-  password: string;
-  phone_number: string;
-  confirmPassword: string;
-  otp: string;
-}) => {
-  // ตรวจสอบว่า OTP ถูกต้องหรือยัง
-  const verify = await pool.query(
-    `SELECT * FROM email_verifications 
-     WHERE email = $1 AND otp = $2 AND expires_at > NOW()`,
-    [email, otp]
-  );
+const JWT_SECRET = process.env.JWT_SECRET || "secret";
 
-  if (verify.rows.length === 0) {
-    throw new Error("รหัส OTP ไม่ถูกต้องหรือหมดอายุ");
-  }
-
-  // เช็ค email ซ้ำ
-  const exist = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-  if (exist.rows.length > 0) throw new Error("Email นี้ถูกใช้แล้ว");
-
-  if (password !== confirmPassword) throw new Error("ยืนยันรหัสไม่ถูกต้อง");
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  // สมัคร (status=1 เพราะ verify แล้ว)
-  const result = await pool.query(
-    `INSERT INTO users (name, email, password, phone_number, status)
-     VALUES ($1, $2, $3, $4, 1) 
-     RETURNING id, name, email, phone_number, role, status`,
-    [name, email, hashedPassword, phone_number]
-  );
-
-  // ลบ OTP ที่ใช้แล้ว
-  await pool.query("DELETE FROM email_verifications WHERE email = $1", [email]);
-  return result.rows[0];
-};
-
-
-// login
-// POST: /api/auth/login
-export async function loginService(email: string, password: string) {
-  const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-  const user = result.rows[0];
-
-  if (!user) throw new Error("อีเมลหรือรหัสไม่ถูกต้อง");
-  const match = await bcrypt.compare(password, user.password);
-  if (!match) throw new Error("อีเมลหรือรหัสไม่ถูกต้อง");
-  const token = generateToken({ id: user.id, role: user.role });
-  return { role: user.role, name: user.name, token };
+// ส่ง OTP ไปยังอีเมล
+export async function sendOtp({ email }: { email: string }) {
+    const otp_code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires_at = new Date(Date.now() + 5 * 60 * 1000); // 5 นาที
+    try {
+        await db.query(
+            `INSERT INTO otp (email, otp_code, expires_at) VALUES ($1, $2, $3)`,
+            [email, otp_code, expires_at]
+        );
+        await sendMail(email, "Your OTP Code", `Your OTP code is: ${otp_code}`);
+        return { status: 200, result: "OTP sent successfully" };
+    } catch (e) {
+        return { status: 400, result: "Failed to send OTP" };
+    }
 }
 
-// ส่งอีเมลยืนยัน
-// ส่ง OTP 6 หลักเพื่อยืนยันอีเมล
-function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+// ตรวจสอบ OTP
+export async function verifyOtp({ email, otp_code }: { email: string; otp_code: string }) {
+    try {
+        const res = await db.query(
+            `SELECT * FROM otp WHERE email=$1 AND otp_code=$2 AND expires_at > NOW() AND verified=FALSE ORDER BY expires_at DESC LIMIT 1`,
+            [email, otp_code]
+        );
+        if (res.rowCount === 0) {
+            return { status: 400, result: "Invalid or expired OTP" };
+        }
+
+        await db.query(`UPDATE otp SET verified=TRUE WHERE id=$1`, [res.rows[0].id]);
+        return { status: 200, result: "OTP verified successfully" };
+    } catch (e) {
+        return { status: 400, result: "Failed to verify OTP" };
+    }
 }
 
-export async function sendVerification(email: string) {
-  const otp = generateOTP();
-
-
-
-  // เก็บ OTP ใหม่
-  await pool.query(
-    `INSERT INTO email_verifications (email, otp, expires_at)
-     VALUES ($1, $2, NOW() + INTERVAL '10 minutes')`,
-    [email, otp]
-  );
-
-  await sendMail(
+// สมัครสมาชิก (ต้อง verify OTP ก่อน)
+export async function register({
+    name,
+    surname,
     email,
-    "รหัสยืนยันสมัครสมาชิก",
-    `<p>รหัส OTP ของคุณคือ: <b>${otp}</b> (หมดอายุใน 10 นาที)</p>`
-  );
+    password,
+    telephone,
+}: {
+    name: string;
+    surname: string;
+    email: string;
+    password: string;
+    telephone: string;
+}) {
+    try {
+        // ตรวจสอบ email, telephone ซ้ำ
+        const exists = await db.query(
+            `SELECT 1 FROM "users" WHERE email=$1 OR telephone=$2`,
+            [email, telephone]
+        );
+        if ((exists.rowCount??0) > 0) {
+            return { status: 400, result: "Email or telephone already exists" };
+        }
+
+        // ตรวจสอบ OTP
+        const otp = await db.query(
+            `SELECT * FROM otp WHERE email=$1 AND verified=TRUE AND expires_at > NOW() ORDER BY expires_at DESC LIMIT 1`,
+            [email]
+        );
+        if (otp.rowCount === 0) {
+            return { status: 400, result: "OTP not verified" };
+        }
+
+        const hash = await bcrypt.hash(password, 10);
+        const token = jwt.sign({ email, telephone }, JWT_SECRET);
+
+        await db.query(
+            `INSERT INTO "users" (name, surname, email, password, telephone, token) VALUES ($1,$2,$3,$4,$5,$6)`,
+            [name, surname, email, hash, telephone, token]
+        );
+        return { status: 200, result: "Registered successfully" };
+    } catch (e) {
+        return { status: 400, result: "Failed to register" };
+    }
 }
 
+// เข้าสู่ระบบ
+export async function login({ email, password }: { email: string; password: string }) {
+    try {
+        const users = await db.query(`SELECT * FROM "users" WHERE email=$1`, [email]);
+        if (users.rowCount === 0) {
+            return { status: 400, result: "Invalid credentials" };
+        }
 
-// ส่งอีเมล reset password
-export async function sendResetPassword(email: string) {
-  const userRes = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
-  const user = userRes.rows[0];
-  if (!user) throw new Error("ไม่พบผู้ใช้");
-  const token = crypto.randomBytes(32).toString("hex");
-  // ลบ token เก่า (ถ้ามี)
-  await pool.query(
-    `DELETE FROM user_tokens WHERE user_id = $1 AND type = 'reset'`,
-    [user.id]
-  );
-  // เพิ่ม token ใหม่
-  await pool.query(
-    `INSERT INTO user_tokens (user_id, token, type, expires_at)
-     VALUES ($1, $2, 'reset', NOW() + INTERVAL '1 hour')`,
-    [user.id, token]
-  );
-  const url = `https://yourdomain.com/reset-password?token=${token}`;
-  await sendMail(email, "Reset your password", `<p>Click <a href="${url}">here</a> to reset your password.</p>`);
+        const valid = await bcrypt.compare(password, users.rows[0].password);
+        if (!valid) {
+            return { status: 400, result: "Invalid credentials" };
+        }
+
+        const token = jwt.sign(
+            { id: users.rows[0].id, email },
+            JWT_SECRET,
+            { expiresIn: "1d" }
+        );
+
+        return {
+            status: 200,
+            result: "Login successful",
+            data: {
+                token,
+                user: {
+                    id: users.rows[0].id,
+                    name: users.rows[0].name,
+                    surname: users.rows[0].surname,
+                    email: users.rows[0].email,
+                    telephone: users.rows[0].telephone
+                }
+            }
+        };
+    } catch (e) {
+        return { status: 400, result: "Failed to login" };
+    }
 }
 
-// รีเซ็ตรหัสผ่าน
-export async function resetPassword(token: string, newPassword: string) {
-  const result = await pool.query(
-    `SELECT user_id FROM user_tokens WHERE token = $1 AND type = 'reset' AND expires_at > NOW()`,
-    [token]
-  );
-  const row = result.rows[0];
-  if (!row) throw new Error("Invalid or expired token");
-  const hashed = await bcrypt.hash(newPassword, 10);
-  await pool.query(
-    `UPDATE users SET password = $1 WHERE id = $2`,
-    [hashed, row.user_id]
-  );
-  await pool.query(
-    `DELETE FROM user_tokens WHERE token = $1 AND type = 'reset'`,
-    [token]
-  );
+// ขอเปลี่ยนรหัสผ่าน
+export async function forgotPassword({ email }: { email: string }) {
+    try {
+        const users = await db.query(`SELECT * FROM "users" WHERE email=$1`, [email]);
+        if (users.rowCount === 0) {
+            return { status: 400, result: "Email not found" };
+        }
+
+        const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: "10m" });
+        const expires_at = new Date(Date.now() + 10 * 60 * 1000);
+
+        await db.query(
+            `INSERT INTO forgot_password_token (email, token, expires_at) VALUES ($1,$2,$3)`,
+            [email, token, expires_at]
+        );
+
+        await sendMail(email, "Reset Password", `Click here to reset: https://yourdomain/reset?token=${token}`);
+        return { status: 200, result: "Reset link sent to email" };
+    } catch (e) {
+        return { status: 400, result: "Failed to send reset link" };
+    }
+}
+
+// เปลี่ยนรหัสผ่านด้วย token
+export async function resetPassword({ token, newPassword }: { token: string; newPassword: string; }) {
+    try {
+        const row = await db.query(
+            `SELECT * FROM forgot_password_token WHERE token=$1 AND used=FALSE AND expires_at > NOW()`,
+            [token]
+        );
+        if (row.rowCount === 0) {
+            return { status: 400, result: "Invalid or expired token" };
+        }
+
+        const payload = jwt.verify(token, JWT_SECRET) as jwt.JwtPayload;
+        const email = payload.email;
+        const hash = await bcrypt.hash(newPassword, 10);
+
+        await db.query(`UPDATE "users" SET password=$1 WHERE email=$2`, [hash, email]);
+        await db.query(`UPDATE forgot_password_token SET used=TRUE WHERE token=$1`, [token]);
+        return { status: 200, result: "Password reset successful" };
+    } catch (e) {
+        return { status: 400, result: "Failed to reset password" };
+    }
 }

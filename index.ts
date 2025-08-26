@@ -3,11 +3,9 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // Import controllers
-import { handleAuthRoutes } from "./src/controllers/auth.controller";
-import { handleUserRoutes } from "./src/controllers/user.controller";
-import { handleAdminRoutes } from "./src/controllers/admin.controller";
+
 import { handleSlotRoutes } from "./src/controllers/slot.controller";
-import { handleSecurityRoutes } from "./src/controllers/security.controller";
+import { handleAuthRoutes } from "./src/controllers/auth.controller";
 
 // Import WebSocket utilities
 import {
@@ -19,19 +17,19 @@ import {
 // Start RTSP streams for cameras
 startRtspStreamFor(
   "cam1",
-  process.env.RTSP_USER?? "admin",
-  process.env.RTSP_PASS?? "L2DF3010",
-  process.env.RTSP_IP?? "192.168.1.46",
-  process.env.RTSP_PORT?? "554",
-  process.env.RTSP_QUALITY?? "0"
+  process.env.RTSP_USER ?? "admin",
+  process.env.RTSP_PASS ?? "L2DF3010",
+  process.env.RTSP_IP ?? "192.168.1.46",
+  process.env.RTSP_PORT ?? "554",
+  process.env.RTSP_QUALITY ?? "0"
 );
 startRtspStreamFor(
   "cam2",
-  process.env.RTSP_USER?? "admin",
-  process.env.RTSP_PASS?? "L2DF3010",
-  process.env.RTSP_IP?? "192.168.1.46",
-  process.env.RTSP_PORT?? "554",
-  process.env.RTSP_QUALITY?? "0"
+  process.env.RTSP_USER ?? "admin",
+  process.env.RTSP_PASS ?? "L2DF3010",
+  process.env.RTSP_IP ?? "192.168.1.46",
+  process.env.RTSP_PORT ?? "554",
+  process.env.RTSP_QUALITY ?? "0"
 );
 
 // Create a WebSocket server
@@ -56,14 +54,7 @@ const server = Bun.serve<{ upgrade: true; rtsp?: boolean; camKey?: string }, {}>
       }
       return new Response("Upgrade required", { status: 426 });
     }
-    if (req.method === "GET" && url.pathname.startsWith("/uploads/")) {
-      const filePath = `.${url.pathname}`;
-      try {
-        return new Response(Bun.file(filePath));
-      } catch {
-        return new Response("Not found", { status: 404 });
-      }
-    }
+
 
     // RTSP WebSocket upgrade for cam1
     if (url.pathname === "/ws/rtsp") {
@@ -85,21 +76,12 @@ const server = Bun.serve<{ upgrade: true; rtsp?: boolean; camKey?: string }, {}>
 
     // API routes
     if (url.pathname.startsWith("/api/auth")) {
-      return handleAuthRoutes(req).then(withCORS);
-    }
-    if (url.pathname.startsWith("/api/user")) {
-      return handleUserRoutes(req).then(withCORS);
-    }
-    if (url.pathname.startsWith("/api/admin")) {
-      return handleAdminRoutes(req).then(withCORS);
+      return handleAuthRoutes(req);
     }
     if (url.pathname.startsWith("/api/slots")) {
       return handleSlotRoutes(req, clients).then(withCORS);
     }
-    if (url.pathname.startsWith("/api/security")) {
-      return handleSecurityRoutes(req).then(withCORS);
-    }
-    return withCORS(new Response("Not found", { status: 404 }));
+
   },
 
   websocket: {
