@@ -75,8 +75,7 @@ function generateOTP(): string {
 export async function sendVerification(email: string) {
   const otp = generateOTP();
 
-  // ลบ OTP เก่า
-  await pool.query(`DELETE FROM email_verifications WHERE email = $1`, [email]);
+
 
   // เก็บ OTP ใหม่
   await pool.query(
