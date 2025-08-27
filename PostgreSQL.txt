@@ -1,0 +1,31 @@
+-- users table
+CREATE TABLE public.users (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    surname VARCHAR(100),
+    email VARCHAR(255) UNIQUE,
+    password VARCHAR(255),
+    telephone VARCHAR(20),
+    token TEXT,
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+    role TEXT,
+    avatar_url TEXT
+);
+
+-- forgot_password_token table
+CREATE TABLE public.forgot_password_token (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) REFERENCES public.users(email) ON DELETE CASCADE,
+    token VARCHAR(255),
+    expires_at TIMESTAMP WITHOUT TIME ZONE,
+    used BOOLEAN DEFAULT FALSE
+);
+
+-- otp table
+CREATE TABLE public.otp (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) REFERENCES public.users(email) ON DELETE CASCADE,
+    otp_code VARCHAR(6),
+    expires_at TIMESTAMP WITHOUT TIME ZONE,
+    verified BOOLEAN DEFAULT FALSE
+);
