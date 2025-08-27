@@ -1,9 +1,12 @@
+import "dotenv/config";
 import db from "../models/db";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { sendMail } from "../utils/email";
+import { generateToken } from "../utils/jwt";
 
-const JWT_SECRET = process.env.JWT_SECRET || "secret";
+const JWT_SECRET = process.env.JWT_SECRET as string;
+
 
 // ส่ง OTP ไปยังอีเมล
 export async function sendOtp({ email }: { email: string }) {
@@ -59,7 +62,7 @@ export async function register({
             `SELECT 1 FROM "users" WHERE email=$1 OR telephone=$2`,
             [email, telephone]
         );
-        if ((exists.rowCount??0) > 0) {
+        if ((exists.rowCount ?? 0) > 0) {
             return { status: 400, result: "Email or telephone already exists" };
         }
 
@@ -72,13 +75,13 @@ export async function register({
             return { status: 400, result: "OTP not verified" };
         }
 
-        const hash = await bcrypt.hash(password, 10);
-        const token = jwt.sign({ email, telephone }, JWT_SECRET);
+        const hash = await bcrypt.hash(password, 12);
 
         await db.query(
-            `INSERT INTO "users" (name, surname, email, password, telephone, token) VALUES ($1,$2,$3,$4,$5,$6)`,
-            [name, surname, email, hash, telephone, token]
-        );
+            `INSERT INTO "users"(name,surname,email,password,telephone,token,created_at) VALUES ($1,$2,$3,$4,$5,'',NOW()) RETURNING id`,
+            [name, surname, email, hash, telephone]
+        )
+
         return { status: 200, result: "Registered successfully" };
     } catch (e) {
         return { status: 400, result: "Failed to register" };
@@ -89,20 +92,15 @@ export async function register({
 export async function login({ email, password }: { email: string; password: string }) {
     try {
         const users = await db.query(`SELECT * FROM "users" WHERE email=$1`, [email]);
-        if (users.rowCount === 0) {
-            return { status: 400, result: "Invalid credentials" };
-        }
+        if (users.rowCount === 0) return { status: 400, result: "Invalid credentials" };
 
-        const valid = await bcrypt.compare(password, users.rows[0].password);
-        if (!valid) {
-            return { status: 400, result: "Invalid credentials" };
-        }
+        const user = users.rows[0]
+        const valid = await bcrypt.compare(password, user.password)
+        if (!valid) return { status: 400, result: "Invalid credentials" }
 
-        const token = jwt.sign(
-            { id: users.rows[0].id, email },
-            JWT_SECRET,
-            { expiresIn: "1d" }
-        );
+        const token = generateToken({ sub: user.id })
+        await db.query(`UPDATE "users" SET token=$1 WHERE id=$2`, [token, user.id])
+
 
         return {
             status: 200,
@@ -111,16 +109,18 @@ export async function login({ email, password }: { email: string; password: stri
                 token,
                 user: {
                     id: users.rows[0].id,
-                    name: users.rows[0].name,
-                    surname: users.rows[0].surname,
-                    email: users.rows[0].email,
-                    telephone: users.rows[0].telephone
                 }
             }
         };
     } catch (e) {
         return { status: 400, result: "Failed to login" };
     }
+}
+
+// ออกจากระบบ
+export async function logout({ userId }: { userId: number }) {
+    await db.query(`UPDATE "users" SET token=NULL WHERE id=$1`, [userId])
+    return { status: 200, result: "Logged out" }
 }
 
 // ขอเปลี่ยนรหัสผ่าน
@@ -139,7 +139,7 @@ export async function forgotPassword({ email }: { email: string }) {
             [email, token, expires_at]
         );
 
-        await sendMail(email, "Reset Password", `Click here to reset: https://yourdomain/reset?token=${token}`);
+        await sendMail(email, "Reset Password", `Click here to reset: ${process.env.FRONTEND_URL}/reset?token=${token}`);
         return { status: 200, result: "Reset link sent to email" };
     } catch (e) {
         return { status: 400, result: "Failed to send reset link" };
@@ -161,10 +161,13 @@ export async function resetPassword({ token, newPassword }: { token: string; new
         const email = payload.email;
         const hash = await bcrypt.hash(newPassword, 10);
 
-        await db.query(`UPDATE "users" SET password=$1 WHERE email=$2`, [hash, email]);
-        await db.query(`UPDATE forgot_password_token SET used=TRUE WHERE token=$1`, [token]);
+        await db.query(`UPDATE "users" SET password=$1, token=NULL WHERE email=$2`, [hash, email])
+        await db.query(`UPDATE forgot_password_token SET used=TRUE WHERE token=$1`, [token])
+
         return { status: 200, result: "Password reset successful" };
     } catch (e) {
+        console.log(e);
+
         return { status: 400, result: "Failed to reset password" };
     }
 }
