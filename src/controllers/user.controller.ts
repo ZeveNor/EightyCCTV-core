@@ -1,46 +1,57 @@
-import { getUserProfile, updateUserProfile, updateProfileImage } from "../services/user.service";
-import { requireAuth } from "../middleware/auth";
+import { updateUserProfile, uploadUserAvatar, getUserAvatar } from "../services/user.service";
+import { authenticateFetchRequest } from "../utils/jwt";
+import { withCORS } from "../utils/cors";
 
 export async function handleUserRoutes(req: Request): Promise<Response> {
-  const user = requireAuth(req);
-  if (user instanceof Response) return user;
+    const url = new URL(req.url);
 
-  const url = new URL(req.url);
+    // Authenticate user Engine. Don't change. 
+    // ตรวจสอบ token ผ่าน helper เดียว
+    const auth = await authenticateFetchRequest(req as any);
+    if (!auth.ok) return withCORS(Response.json(auth.body, { status: auth.status }));
+    const user = auth.user!;
+    // 
 
-  // GET /api/user/me
-  if (req.method === "GET" && url.pathname === "/api/user/me") {
-    const profile = await getUserProfile(Number(user.id));
-    if (!profile) return Response.json({ message: "User not found" }, { status: 404 });
-    return Response.json(profile);
-  }
-
-  // PUT /api/user/me
-  if (req.method === "PUT" && url.pathname === "/api/user/me") {
-    const body = await req.json();
-    await updateUserProfile(Number(user.id), body);
-    return Response.json({ message: "Profile updated" });
-  }
-
-  if (req.method === "POST" && url.pathname === "/api/user/me/profile-image") {
-    // 1. รับ multipart/form-data
-    const formData = await req.formData();
-    const file = formData.get("file");
-    if (!(file instanceof File)) {
-      return Response.json({ message: "No file uploaded" }, { status: 400 });
+    // แก้ไขข้อมูลผู้ใช้
+    if (url.pathname === "/api/user/update" && req.method === "POST") {
+        const body = await req.json();
+        if (!user.id) {
+            return withCORS(Response.json({ result: "User ID not found" }, { status: 400 }));
+        }
+        const result = await updateUserProfile(user.id, body);
+        return withCORS(Response.json({ result }, { status: result.status }));
     }
 
-    // 2. สร้างชื่อไฟล์ใหม่ ป้องกันชื่อซ้ำ
-    const filename = `profile_${user.id}_${Date.now()}.${file.name.split('.').pop()}`;
-    const uploadPath = `./uploads/${filename}`;
+    // อัพโหลดรูปโปรไฟล์
+    if (url.pathname === "/api/user/avatar" && req.method === "POST") {
+        const formData = await req.formData();
+        const file = formData.get("avatar") as File;
 
-    // 3. บันทึกไฟล์ลง disk
-    await Bun.write(uploadPath, file);
+        if (!file) {
+            return withCORS(Response.json({ result: "Invalid file" }, { status: 400 }));
+        }
 
-    // 4. อัปเดต path ในฐานข้อมูล
-    await updateProfileImage(Number(user.id), filename);
+        const checkFile = file.type.includes("png") || file.type.includes("jpeg") || file.type.includes("jpg");
+        if (!checkFile) {
+            return withCORS(Response.json({ result: "File is not an image" }, { status: 400 }));
+        }
 
-    // 5. ส่ง URL กลับ
-    return Response.json({ url: `/uploads/${filename}` });
-  }
-  return new Response("Not found", { status: 404 });
+        if (!user.id) {
+            return withCORS(Response.json({ result: "User ID not found" }, { status: 400 }));
+        }
+        const result = await uploadUserAvatar(user.id, file as Blob);
+        return withCORS(Response.json({ result }, { status: result.status }));
+    }
+
+    // ดึง url รูปโปรไฟล์
+    if (url.pathname === "/api/user/avatar" && req.method === "GET") {
+        if (!user.id) {
+            return withCORS(Response.json({ result: "User ID not found" }, { status: 400 }));
+        }
+        const result = await getUserAvatar(user.id);
+        return withCORS(Response.json({ result }, { status: result.status }));
+    }
+
+
+    return new Response("Not found", { status: 404 });
 }
