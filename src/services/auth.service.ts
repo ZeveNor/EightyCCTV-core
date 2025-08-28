@@ -117,12 +117,6 @@ export async function login({ email, password }: { email: string; password: stri
     }
 }
 
-// ออกจากระบบ
-export async function logout({ userId }: { userId: number }) {
-    await db.query(`UPDATE "users" SET token=NULL WHERE id=$1`, [userId])
-    return { status: 200, result: "Logged out" }
-}
-
 // ขอเปลี่ยนรหัสผ่าน
 export async function forgotPassword({ email }: { email: string }) {
     try {
