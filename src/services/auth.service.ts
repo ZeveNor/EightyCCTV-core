@@ -101,7 +101,6 @@ export async function login({ email, password }: { email: string; password: stri
         const token = generateToken({ sub: user.id })
         await db.query(`UPDATE "users" SET token=$1 WHERE id=$2`, [token, user.id])
 
-
         return {
             status: 200,
             result: "Login successful",
