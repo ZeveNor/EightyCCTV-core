@@ -101,7 +101,6 @@ export async function login({ email, password }: { email: string; password: stri
         const token = generateToken({ sub: user.id })
         await db.query(`UPDATE "users" SET token=$1 WHERE id=$2`, [token, user.id])
 
-
         return {
             status: 200,
             result: "Login successful",
@@ -115,12 +114,6 @@ export async function login({ email, password }: { email: string; password: stri
     } catch (e) {
         return { status: 400, result: "Failed to login" };
     }
-}
-
-// ออกจากระบบ
-export async function logout({ userId }: { userId: number }) {
-    await db.query(`UPDATE "users" SET token=NULL WHERE id=$1`, [userId])
-    return { status: 200, result: "Logged out" }
 }
 
 // ขอเปลี่ยนรหัสผ่าน
