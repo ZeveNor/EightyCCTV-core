@@ -10,8 +10,8 @@ import time
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|stimeout;10000000"
 model = YOLO('yolo11s.pt')  
 url = "rtsp://admin:L2DF3010@192.168.139.132:554/cam/realmonitor?channel=1&subtype=1"
-cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
-# cap = cv2.VideoCapture('parking1.mp4')
+# cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
+cap = cv2.VideoCapture('parking1.mp4')
 SLOTS_FILE = "slots.json"
 CLASS_FILE = "coco.txt"
 
@@ -63,44 +63,24 @@ if len(parking_areas) == 0:
             break
     cv2.destroyWindow("Select Parking")
 
-# ตรวจจับรถในที่จอด
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
-    frame = cv2.resize(frame, (1020, 500))
-
-    results = model.predict(frame, conf=0.5, verbose=False)
-    boxes = results[0].boxes.data
-    if boxes is None or len(boxes) == 0:
-        continue
-
-    px = pd.DataFrame(results[0].boxes.data.cpu().numpy()).astype("float")
-    occupied = [False] * len(parking_areas)
-    
-    for i, area in enumerate(parking_areas):
-        poly = np.array(area, np.int32)
-        for _, row in px.iterrows():
-            x1, y1, x2, y2, _, cls_id = map(int, row)
-            label = class_list[cls_id]
-            if label == "car":  # จะเพิ่ม 'truck' ก็ได้
-                cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-                if label == "car": #นั้นคือรถ จุดนั้นแหละ
-                    cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-                    if cv2.pointPolygonTest(poly, (cx, cy), False) >= 0:
-                        occupied[i] = True
-                        cv2.circle(frame, (cx, cy), 3, (0, 0, 255), -1)  # แสดงเฉพาะจุดกลาง
-        # --- ส่งสถานะไป backend ---
-    
 def get_token():
     login_data = {
-        "email": "admin3@example.com",
+        "email": "oomo1212312121@gmail.com",
         "password": "123456"
     }
     try:
         resp = requests.post("http://localhost:3000/api/auth/login", json=login_data)
         if resp.status_code == 200:
-            return resp.json()["token"]
+            data = resp.json()
+            token = None
+            if "result" in data and "data" in data["result"] and "token" in data["result"]["data"]:
+                token = data["result"]["data"]["token"]
+            if token:
+                print("Login success", data)
+                return token
+            else:
+                print("Login failed: No token in response", data)
+                return None
         else:
             print("Login failed:", resp.text)
             return None
@@ -109,45 +89,65 @@ def get_token():
         return None
 
 token = get_token()
-token_time = time.time()
+last_status = None
+slot_names = ["A1", "A2", "A3", "B1", "A4", "A5", "B2", "B3", "B4", "B5"]
 
 while True:
-    # ...อ่าน frame, ตรวจจับ ฯลฯ...
-
-    # ถ้า token หมดอายุ (เช่น 1 ชม.) ให้ login ใหม่
-    if not token or (time.time() - token_time > 3500):
-        token = get_token()
-        token_time = time.time()
-
-    headers = {"Authorization": f"Bearer {token}"} if token else {}
-
     try:
-        response = requests.post(
-            "http://localhost:3000/api/slots/status",
-            json={"status": occupied},
-            headers=headers
-        )
-        if response.status_code != 200:
-            print("Failed to update backend:", response.status_code)
+        ret, frame = cap.read()
+        if not ret:
+            break
+        frame = cv2.resize(frame, (1020, 500))
+
+        results = model.predict(frame, conf=0.5, verbose=False)
+        boxes = results[0].boxes.data
+        if boxes is None or len(boxes) == 0:
+            continue
+
+        px = pd.DataFrame(boxes.cpu().numpy()).astype("float")
+        occupied = [False] * len(parking_areas)
+        for i, area in enumerate(parking_areas):
+            poly = np.array(area, np.int32)
+            for _, row in px.iterrows():
+                x1, y1, x2, y2, _, cls_id = map(int, row)
+                label = class_list[cls_id]
+                if label == "car":
+                    cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+                    if cv2.pointPolygonTest(poly, (cx, cy), False) >= 0:
+                        occupied[i] = True
+                        cv2.circle(frame, (cx, cy), 3, (0, 0, 255), -1)
+
+        # ส่งสถานะไป backend เฉพาะเมื่อมีการเปลี่ยนแปลง
+        slots = [{"slot_name": name, "is_parked": occupied[i]} for i, name in enumerate(slot_names)]
+        if last_status is None or any(slots[i]["is_parked"] != last_status[i]["is_parked"] for i in range(len(slots))):
+            headers = {"Authorization": f"Bearer {token}"} if token else {}
+            try:
+                resp = requests.post("http://localhost:3000/api/slots/status", json={"slots": slots}, headers=headers)
+                if resp.status_code != 200:
+                    print("Failed to update backend:", resp.text)
+            except Exception as e:
+                print("Error sending status:", e)
+            last_status = slots.copy()
+
+        # วาดช่องจอดและแสดงผล
+        for i, area in enumerate(parking_areas):
+            poly = np.array(area, np.int32)
+            color = (0, 0, 255) if occupied[i] else (0, 255, 0)
+            cv2.polylines(frame, [poly], True, color, 2)
+            cv2.putText(frame, f"Slot {i+1}", tuple(area[0]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        free_slots = occupied.count(False)
+        cv2.putText(frame, f"Free Slots: {free_slots}/{len(parking_areas)}", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
+                    (0, 255, 255), 2)
+
+        if frame is not None and frame.shape[0] > 0 and frame.shape[1] > 0:
+            cv2.imshow("Parking Detection", frame)
+            if cv2.waitKey(0) & 0xFF == 27: # <--------------------------- ปรับเฟรม เเละ กดออกด้วย esc
+                break
+        else:
+            print("Frame is empty, skipping display.")
+            break
     except Exception as e:
-        print("Error sending status:", e)
-
-
-
-    # วาดช่องจอด
-    for i, area in enumerate(parking_areas):
-        poly = np.array(area, np.int32)
-        color = (0, 0, 255) if occupied[i] else (0, 255, 0)
-        cv2.polylines(frame, [poly], True, color, 2)
-        cv2.putText(frame, f"Slot {i+1}", tuple(area[0]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-
-    # แสดงจำนวนว่าง
-    free_slots = occupied.count(False)
-    cv2.putText(frame, f"Free Slots: {free_slots}/{len(parking_areas)}", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
-                (0, 255, 255), 2)
-
-    cv2.imshow("Parking Detection", frame)
-    if cv2.waitKey(1) & 0xFF == 27:
+        print("Detection loop error:", e)
         break
 
 cap.release()
