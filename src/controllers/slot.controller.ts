@@ -1,5 +1,5 @@
-
-import { getSlotByName, getAllSlots, updateSlotStatus, createSlot } from "../services/slot.service";
+import { updateSlotStatus,getAllSlots } from "../services/slot.service";
+import { authenticateFetchRequest } from "../utils/jwt";
 
 export async function handleSlotRoutes(
   req: Request,
@@ -7,32 +7,18 @@ export async function handleSlotRoutes(
 ): Promise<Response> {
   const url = new URL(req.url);
 
-  // POST /api/slots/init
-  if (req.method === "POST" && url.pathname === "/api/slots/init") {
-    const body = await req.json();
-    const newslot = body.newSlotName;
-    const newrows = body.newRows;
-    try {
-      const existingSlots = await getSlotByName(newslot);
-      if (existingSlots.length > 0) {
-        return Response.json({ message: "Slots already initialized" }, { status: 200 });
-      }
-      const res = await createSlot(newslot, newrows);
-      return Response.json({ message: "Initialized slots in DB", slot: res });
-
-    } catch (e) {
-      return Response.json({ error: "Database initialization failed" }, { status: 500 });
-    }
-  }
-
   // POST /api/slots/status
   if (req.method === "POST" && url.pathname === "/api/slots/status") {
+    // ตรวจสอบ token
+    const auth = await authenticateFetchRequest(req as any);
+    if (!auth.ok) return Response.json(auth.body, { status: auth.status });
+
     const body = await req.json();
-    if (!Array.isArray(body.status)) {
-      return Response.json({ error: "Invalid status data" }, { status: 400 });
+    if (!Array.isArray(body.slots)) {
+      return Response.json({ error: "Invalid slots data" }, { status: 400 });
     }
     try {
-      const slots = await updateSlotStatus(body.status);
+      const slots = await updateSlotStatus(body.slots);
       // Broadcast ไปยังทุก client ที่เชื่อมต่อ WebSocket
       if (clients) {
         const msg = JSON.stringify({ type: "slots_update", slots });

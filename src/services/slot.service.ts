@@ -1,10 +1,10 @@
 import pool from "../models/db";
 
-export async function updateSlotStatus(status: boolean[]) {
-  for (let i = 0; i < status.length; i++) {
+export async function updateSlotStatus(slots: { slot_name: string, is_parked: boolean }[]) {
+  for (const slot of slots) {
     await pool.query(
       "UPDATE parking_slots SET is_parked = $1 WHERE slot_name = $2",
-      [status[i], i + 1]
+      [slot.is_parked, slot.slot_name]
     );
   }
   const result = await pool.query("SELECT * FROM parking_slots ORDER BY id");
