@@ -14,6 +14,56 @@ export async function updateUserProfile(id: string, { name, surname, telephone }
   }
 }
 
+// ดึงข้อมูลผู้ใช้
+export async function getUserInfo(id: string) {
+  try {
+    const res = await db.query(
+      `SELECT id, name, surname, email, telephone, role FROM "users" WHERE id=$1`,
+      [id]
+    );
+    if (res.rowCount === 0) return { status: 404, result: "User not found" };
+    return { status: 200, result: res.rows[0] };
+  } catch (e) {
+    return { status: 400, result: "Get Info failed" };
+  }
+}
+
+// แสดงรายชื่อผู้ใช้ (เฉพาะ admin)
+export async function getAllUsers() {
+  try {
+    const res = await db.query(`SELECT id, name, surname, email, telephone, role FROM "users" WHERE deleted_at IS NULL ORDER BY id`);
+    return { status: 200, result: res.rows };
+  } catch(e) {
+    return { status: 400, result: "Get users failed" };
+  }
+}
+
+// ลบผู้ใช้ (soft delete)
+export async function userRemove(id: string) {
+  try {
+    await db.query(
+      `UPDATE "users" SET deleted_at = NOW() WHERE id = $1`,
+      [id]
+    );
+    return { status: 200, result: "User soft removed" };
+  } catch (e) {
+    return { status: 400, result: "Remove failed" };
+  }
+}
+
+// ยกเลิกremove (set deleted_at to null)
+export async function userUnremove(id: string) {
+  try {
+    await db.query(
+      `UPDATE "users" SET deleted_at = NULL WHERE id = $1`,
+      [id]
+    );
+    return { status: 200, result: "User unremoved" };
+  } catch (e) {
+    return { status: 400, result: "Unremove failed" };
+  }
+}
+
 // อัพโหลดรูปโปรไฟล์
 export async function uploadUserAvatar(id: string, file: Blob) {
   try {

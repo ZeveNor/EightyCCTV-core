@@ -134,7 +134,8 @@ while True:
             poly = np.array(area, np.int32)
             color = (0, 0, 255) if occupied[i] else (0, 255, 0)
             cv2.polylines(frame, [poly], True, color, 2)
-            cv2.putText(frame, f"Slot {i+1}", tuple(area[0]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            
+            cv2.putText(frame, slot_names[i], tuple(area[0]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
         free_slots = occupied.count(False)
         cv2.putText(frame, f"Free Slots: {free_slots}/{len(parking_areas)}", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
                     (0, 255, 255), 2)
