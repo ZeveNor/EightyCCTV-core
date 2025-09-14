@@ -4,7 +4,6 @@ export async function getAllEntry() {
   try {
     const sql = `SELECT * FROM vehicle_logs;`;
     const res = await db.query(`SELECT * FROM vehicle_logs;`);
-    console.log("res", res);
 
     return { status: 200, result: { result: res.rows } };
   } catch {
