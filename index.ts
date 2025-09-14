@@ -8,6 +8,8 @@ import { handleSlotRoutes } from "./src/controllers/slot.controller";
 import { handleAuthRoutes } from "./src/controllers/auth.controller";
 import { handleUserRoutes } from "./src/controllers/user.controller";
 import { handleVehicleRoutes } from "./src/controllers/vehicle.controller";
+import { handleEntryRoutes } from "./src/controllers/entry.controller";
+
 // Import WebSocket utilities
 import {
   startRtspStreamFor,
@@ -87,6 +89,9 @@ const server = Bun.serve<{ upgrade: true; rtsp?: boolean; camKey?: string }, {}>
     }
     if (url.pathname.startsWith("/api/vehicle")) {
       return handleVehicleRoutes(req);
+    }
+    if (url.pathname.startsWith("/api/entry")) {
+      return handleEntryRoutes(req);
     }
   },
 

@@ -3,7 +3,7 @@ import db from "../models/db";
 export async function getAllVehicles() {
   try {
     const sql = `
-      SELECT uv.id, u.name, u.surname, uv.license_plate, uv.brand, uv.model, uv.color, uv.created_at
+      SELECT uv.license_plate, u.name, u.surname, uv.license_plate, uv.brand, uv.model, uv.color, uv.created_at
       FROM user_vehicles uv
       JOIN users u ON u.id = uv.user_id
       WHERE uv.deleted_at IS NULL;
@@ -19,7 +19,7 @@ export async function getAllVehicles() {
 export async function getVehiclesbyOwner(name: string) {
   try {
     const sql = `
-      SELECT uv.id, u.name, u.surname, uv.license_plate, uv.brand, uv.model, uv.color, uv.created_at
+      SELECT uv.license_plate, u.name, u.surname, uv.license_plate, uv.brand, uv.model, uv.color, uv.created_at
       FROM user_vehicles uv
       JOIN users u ON u.id = uv.user_id
       WHERE uv.deleted_at IS NULL AND (u.name ILIKE $1 OR u.surname ILIKE $1);
@@ -35,7 +35,7 @@ export async function getVehiclesbyOwner(name: string) {
 export async function getVehiclesbyPlate(plate: string) {
   try {
     const sql = `
-      SELECT uv.id, u.name, u.surname, uv.license_plate, uv.brand, uv.model, uv.color, uv.created_at
+      SELECT uv.license_plate, u.name, u.surname, uv.license_plate, uv.brand, uv.model, uv.color, uv.created_at
       FROM user_vehicles uv
       JOIN users u ON u.id = uv.user_id
       WHERE uv.deleted_at IS NULL AND uv.license_plate ILIKE '%' || $1 || '%';
@@ -51,7 +51,7 @@ export async function getVehiclesbyPlate(plate: string) {
 export async function getVehiclesbyPlateCloset(plate: string) {
   try {
     const sql = `
-      SELECT uv.id, u.name, u.surname, uv.license_plate, uv.brand, uv.model, uv.color, uv.created_at
+      SELECT uv.license_plate, u.name, u.surname, uv.license_plate, uv.brand, uv.model, uv.color, uv.created_at
       FROM user_vehicles uv
       JOIN users u ON u.id = uv.user_id
       WHERE uv.deleted_at IS NULL AND uv.license_plate ILIKE '%' || $1 || '%';
