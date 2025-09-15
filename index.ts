@@ -79,19 +79,19 @@ const server = Bun.serve<{ upgrade: true; rtsp?: boolean; camKey?: string }, {}>
 
     // API routes
     if (url.pathname.startsWith("/api/auth")) {
-      return handleAuthRoutes(req);
+      return handleAuthRoutes(req).then(withCORS);
     }
     if (url.pathname.startsWith("/api/slots")) {
       return handleSlotRoutes(req, clients).then(withCORS);
     }
     if (url.pathname.startsWith("/api/user")) {
-      return handleUserRoutes(req);
+      return handleUserRoutes(req).then(withCORS);
     }
     if (url.pathname.startsWith("/api/vehicle")) {
-      return handleVehicleRoutes(req);
+      return handleVehicleRoutes(req).then(withCORS);
     }
     if (url.pathname.startsWith("/api/entry")) {
-      return handleEntryRoutes(req);
+      return handleEntryRoutes(req).then(withCORS);
     }
   },
 
