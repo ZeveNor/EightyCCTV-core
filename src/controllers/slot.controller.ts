@@ -1,4 +1,4 @@
-import { updateSlotStatus,getSlotLog,getAllSlotStatus  } from "../services/slot.service";
+import { updateSlotStatus, getSlotLog, getAllSlotStatus } from "../services/slot.service";
 import { authenticateFetchRequest } from "../utils/jwt";
 
 export async function handleSlotRoutes(
@@ -33,25 +33,25 @@ export async function handleSlotRoutes(
   }
 
 
-// GET /api/slots/log
-if (req.method === "GET" && url.pathname === "/api/slots/log") {
-  // ตรวจสอบ token
-  const auth = await authenticateFetchRequest(req as any);
-  if (!auth.ok) return Response.json(auth.body, { status: auth.status });
-  const user = auth.user!;
-  // เฉพาะ admin หรือ security เท่านั้น
-  if (!["admin", "security"].includes(user.role)) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
+  // GET /api/slots/log
+  if (req.method === "GET" && url.pathname === "/api/slots/log") {
+    // ตรวจสอบ token
+    const auth = await authenticateFetchRequest(req as any);
+    if (!auth.ok) return Response.json(auth.body, { status: auth.status });
+    const user = auth.user!;
+    // เฉพาะ admin หรือ security เท่านั้น
+    if (!["admin", "security"].includes(user.role)) {
+      return Response.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const logs = await getSlotLog();
+    return Response.json({ result: logs }, { status: 200 });
   }
-  const logs = await getSlotLog();
-  return Response.json({ result: logs }, { status: 200 });
-}
 
-// GET /api/slots/status
-if (req.method === "GET" && url.pathname === "/api/slots/status") {
-  const slots = await getAllSlotStatus();
-  return Response.json({ result: slots }, { status: 200 });
-}
+  // GET /api/slots/status
+  if (req.method === "GET" && url.pathname === "/api/slots/status") {
+    const slots = await getAllSlotStatus();
+    return Response.json({ result: slots }, { status: 200 });
+  }
 
   return new Response("Not found", { status: 404 });
 }
