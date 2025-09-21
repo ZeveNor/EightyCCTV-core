@@ -10,6 +10,7 @@ import { handleUserRoutes } from "./src/controllers/user.controller";
 import { handleVehicleRoutes } from "./src/controllers/vehicle.controller";
 import { handleEntryRoutes } from "./src/controllers/entry.controller";
 
+
 // Import WebSocket utilities
 import {
   startRtspStreamFor,
@@ -93,6 +94,9 @@ const server = Bun.serve<{ upgrade: true; rtsp?: boolean; camKey?: string }, {}>
     if (url.pathname.startsWith("/api/entry")) {
       return handleEntryRoutes(req).then(withCORS);
     }
+    // if (url.pathname.startsWith("/api/entry")) {
+    //   return handleEntryRoutes(req).then(withCORS);
+    // }
   },
 
   websocket: {
