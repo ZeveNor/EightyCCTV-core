@@ -31,7 +31,7 @@ export async function getUserInfo(id: string) {
 // แสดงรายชื่อผู้ใช้ (เฉพาะ admin)
 export async function getAllUsers() {
   try {
-    const res = await db.query(`SELECT id, name, surname, email, telephone, role FROM "users" WHERE deleted_at IS NULL ORDER BY id`);
+    const res = await db.query(`SELECT id, name, surname, email, telephone, role FROM "users"  ORDER BY id`);
     return { status: 200, result: res.rows };
   } catch(e) {
     return { status: 400, result: "Get users failed" };

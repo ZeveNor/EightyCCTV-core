@@ -8,16 +8,16 @@ import requests
 import time
 
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|stimeout;10000000"
-model = YOLO('yolo11s.pt')  
+model = YOLO('best.pt')  
 url = "rtsp://admin:L2DF3010@192.168.139.132:554/cam/realmonitor?channel=1&subtype=1"
 # cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
-cap = cv2.VideoCapture('parking1.mp4')
+cap = cv2.VideoCapture('13_15_54.mp4')
 SLOTS_FILE = "slots.json"
 CLASS_FILE = "coco.txt"
 
 # โหลด class list
 with open(CLASS_FILE, "r") as f:
-    class_list = f.read().splitlines()
+    class_list = ["car"]
 
 # ตัวแปรเก็บพิกัดช่องจอด
 parking_areas = []
@@ -99,7 +99,7 @@ while True:
             break
         frame = cv2.resize(frame, (1020, 500))
 
-        results = model.predict(frame, conf=0.5, verbose=False)
+        results = model.predict(frame, conf=0.9, verbose=False)
         boxes = results[0].boxes.data
         if boxes is None or len(boxes) == 0:
             continue
@@ -112,7 +112,8 @@ while True:
                 x1, y1, x2, y2, _, cls_id = map(int, row)
                 label = class_list[cls_id]
                 if label == "car":
-                    cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+                    cx = (x1 + x2) // 2
+                    cy = int(y2 - 0.1 * (y2 - y1))  # จุดเกือบล่างสุด
                     if cv2.pointPolygonTest(poly, (cx, cy), False) >= 0:
                         occupied[i] = True
                         cv2.circle(frame, (cx, cy), 3, (0, 0, 255), -1)
@@ -142,7 +143,7 @@ while True:
 
         if frame is not None and frame.shape[0] > 0 and frame.shape[1] > 0:
             cv2.imshow("Parking Detection", frame)
-            if cv2.waitKey(0) & 0xFF == 27: # <--------------------------- ปรับเฟรม เเละ กดออกด้วย esc
+            if cv2.waitKey(1) & 0xFF == 27: # <--------------------------- ปรับเฟรม เเละ กดออกด้วย esc
                 break
         else:
             print("Frame is empty, skipping display.")
