@@ -1,8 +1,27 @@
 import db from "../models/db";
 import { uploadToFirebase } from "../utils/uploadFirebase";
 
-// แก้ไขข้อมูลผู้ใช้
-export async function updateUserProfile(id: string, { name, surname, telephone }: { name?: string, surname?: string, telephone?: string }) {
+// แก้ไขข้อมูลผู้ใช้ โดย admin
+export async function updateUserProfile(
+  id: string,
+  { name, surname, telephone, role }:
+    { name?: string, surname?: string, telephone?: string, role?: string }
+) {
+  try {
+    await db.query(
+      `UPDATE "users" 
+   SET name=$1, surname=$2, telephone=$3, role=$4 
+   WHERE id=$5`,
+      [name, surname, telephone, role, id]
+    );
+    return { status: 200, result: "User updated" };
+  } catch (e) {
+    console.error("Update error:", e);
+    return { status: 400, result: "Update failed" };
+  }
+}
+// แก้ไขข้อมูลผู้ใช้ โดย user
+export async function updateProfile(id: string, { name, surname, telephone }: { name?: string, surname?: string, telephone?: string }) {
   try {
     await db.query(
       `UPDATE "users" SET name=$1, surname=$2, telephone=$3 WHERE id=$4`,
@@ -13,7 +32,6 @@ export async function updateUserProfile(id: string, { name, surname, telephone }
     return { status: 400, result: "Update failed" };
   }
 }
-
 // ดึงข้อมูลผู้ใช้
 export async function getUserInfo(id: string) {
   try {
@@ -31,9 +49,9 @@ export async function getUserInfo(id: string) {
 // แสดงรายชื่อผู้ใช้ (เฉพาะ admin)
 export async function getAllUsers() {
   try {
-    const res = await db.query(`SELECT id, name, surname, email, telephone, role FROM "users"  ORDER BY id`);
+    const res = await db.query(`SELECT id, name, surname, email, telephone, role, deleted_at FROM "users"  ORDER BY id`);
     return { status: 200, result: res.rows };
-  } catch(e) {
+  } catch (e) {
     return { status: 400, result: "Get users failed" };
   }
 }

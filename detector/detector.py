@@ -90,7 +90,7 @@ def get_token():
 
 token = get_token()
 last_status = None
-slot_names = ["A1", "A2", "A3", "B1", "A4", "A5", "B2", "B3", "B4", "B5"]
+slot_names = ["A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3", "B4", "B5"]
 
 while True:
     try:
