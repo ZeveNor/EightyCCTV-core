@@ -1,9 +1,9 @@
 import {
   getAllVehicles,
-  getVehiclesbyOwner,
+
   getVehiclesbyPlate,
   getVehiclesbyPlateCloset,
-  addVehicles,
+  addVehicle,
   updateVehicles,
   removeVehicles,
   unremoveVehicles,
@@ -22,19 +22,18 @@ export async function handleVehicleRoutes(req: Request): Promise<Response> {
 
 
   if (url.pathname === "/api/vehicle/all" && req.method === "GET") {
-    const result = await getAllVehicles();
-    return withCORS(Response.json({ result }));
-  }
-
-  if (url.pathname === "/api/vehicle/byOwner" && req.method === "POST") {
-    const body = await req.json();
-    if (!body.name) {
-      return withCORS(Response.json({ result: "Keywords required (name,surname)" }, { status: 400 }));
+    try {
+      if (user.role !== "admin") {
+        return withCORS(Response.json({ result: "Forbidden" }, { status: 403 }));
+      }
+      const result = await getAllVehicles();
+      return withCORS(Response.json(result.result, { status: result.status }));
+    } catch (err) {
+      return withCORS(Response.json({ result: "Invalid token" }, { status: 401 }));
     }
-
-    const result = await getVehiclesbyOwner(body.name);
-    return withCORS(Response.json({ result }, { status: result.status }));
   }
+
+
 
   if (url.pathname === "/api/vehicle/byPlate" && req.method === "POST") {
     const body = await req.json();
@@ -46,6 +45,26 @@ export async function handleVehicleRoutes(req: Request): Promise<Response> {
     return withCORS(Response.json({ result }, { status: result.status }));
   }
 
+  if (url.pathname === "/api/vehicle/add" && req.method === "POST") {
+    const body = await req.json();
+
+    if (!body.userId || !body.plate || !body.province || !body.brand || !body.model || !body.color) {
+      return withCORS(
+        Response.json({ result: "Missing required fields" }, { status: 400 })
+      );
+    }
+
+    const result = await addVehicle({
+      userId: body.userId,
+      plate: body.plate,
+      province: body.province,
+      brand: body.brand,
+      model: body.model,
+      color: body.color,
+    });
+
+    return withCORS(Response.json(result, { status: result.status }));
+  }
 
 
   if (url.pathname === "/api/vehicle/addPlate" && req.method === "POST") {
@@ -63,7 +82,8 @@ export async function handleVehicleRoutes(req: Request): Promise<Response> {
       plate: body.plate,
       brand: body.brand,
       model: body.model,
-      color: body.color
+      color: body.color,
+      province: body.province,
     };
 
     const exist = await getVehiclesbyPlate(vehicle.plate);
@@ -71,7 +91,7 @@ export async function handleVehicleRoutes(req: Request): Promise<Response> {
       return withCORS(Response.json({ result: "This plate already exists" }, { status: 400 }));
     }
 
-    const result = await addVehicles(vehicle);
+    const result = await addVehicle(vehicle);
     return withCORS(Response.json({ result }, { status: result.status }));
   }
 
@@ -86,7 +106,8 @@ export async function handleVehicleRoutes(req: Request): Promise<Response> {
       plate: body.plate,
       brand: body.brand,
       model: body.model,
-      color: body.color
+      color: body.color,
+      province: body.province,
     };
     const exist = await getVehiclesbyPlate(vehicle.plate);
     if (exist && exist.result.result.length > 0) {
@@ -107,25 +128,26 @@ export async function handleVehicleRoutes(req: Request): Promise<Response> {
       newPlate: body.new_plate,
       brand: body.brand,
       model: body.model,
-      color: body.color
+      color: body.color,
+      province: body.province,
     };
 
     const result = await updateVehicles(vehicle);
     return withCORS(Response.json({ result }, { status: result.status }));
   }
 
- if (url.pathname === "/api/vehicle/removePlate" && req.method === "POST") {
-  const body = await req.json();
-  if (!body.plate) {
-    return withCORS(Response.json(
-      { result: "Keywords required (plate)" },
-      { status: 400 }
-    ));
-  }
+  if (url.pathname === "/api/vehicle/removePlate" && req.method === "POST") {
+    const body = await req.json();
+    if (!body.plate) {
+      return withCORS(Response.json(
+        { result: "Keywords required (plate)" },
+        { status: 400 }
+      ));
+    }
 
-  const result = await removeVehicles({ plate: body.plate });
-  return withCORS(Response.json({ result }, { status: result.status }));
-}
+    const result = await removeVehicles({ plate: body.plate });
+    return withCORS(Response.json({ result }, { status: result.status }));
+  }
 
 
   if (url.pathname === "/api/vehicle/unremovePlate" && req.method === "POST") {
@@ -145,7 +167,7 @@ export async function handleVehicleRoutes(req: Request): Promise<Response> {
   if (url.pathname === "/api/vehicle/my" && req.method === "GET") {
     try {
       const result = await getVehiclesByUserId(user.id);
-      return withCORS(Response.json( result.result , { status: result.status }));
+      return withCORS(Response.json(result.result, { status: result.status }));
     } catch (err) {
       return withCORS(Response.json({ result: "Invalid token" }, { status: 401 }));
     }
