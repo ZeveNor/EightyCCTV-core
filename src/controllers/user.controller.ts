@@ -20,7 +20,7 @@ export async function handleUserRoutes(req: Request): Promise<Response> {
         const result = await getAllUsers();
         return withCORS(Response.json({ result }, { status: result.status }));
     }
-    
+
     // ดึงข้อมูลผู้ใช้
     if (url.pathname === "/api/user/info" && req.method === "GET") {
         if (!user.id) {
@@ -58,8 +58,22 @@ export async function handleUserRoutes(req: Request): Promise<Response> {
         return withCORS(Response.json({ result }, { status: result.status }));
     }
 
-    // แก้ไขข้อมูลผู้ใช้
+    // แก้ไขข้อมูลผู้ใช้ admin
     if (url.pathname === "/api/user/update" && req.method === "POST") {
+        if (user.role !== "admin") {
+            return withCORS(Response.json({ result: "Forbidden" }, { status: 403 }));
+        }
+        const body = await req.json();
+        if (!body.id) {
+            return withCORS(Response.json({ result: "Target user ID not found" }, { status: 400 }));
+        }
+        const result = await updateUserProfile(body.id, body);
+
+        return withCORS(Response.json({ result }, { status: result.status }));
+    }
+
+    // แก้ไขข้อมูลผู้ใช้ user
+    if (url.pathname === "/api/user/updateProfile" && req.method === "POST") {
         const body = await req.json();
         if (!user.id) {
             return withCORS(Response.json({ result: "User ID not found" }, { status: 400 }));

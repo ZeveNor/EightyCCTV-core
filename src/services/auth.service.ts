@@ -92,7 +92,10 @@ export async function register({
 export async function login({ email, password }: { email: string; password: string }) {
     try {
         const users = await db.query(`SELECT * FROM "users" WHERE email=$1`, [email]);
+        
         if (users.rowCount === 0) return { status: 400, result: "Invalid credentials" };
+        
+        if (users.rows[0].deleted_at) return { status: 400, result: "Account is removed" }; 
 
         const user = users.rows[0]
         const valid = await bcrypt.compare(password, user.password)
