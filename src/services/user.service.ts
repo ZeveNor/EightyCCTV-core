@@ -8,6 +8,7 @@ export async function updateUserProfile(
     { name?: string, surname?: string, telephone?: string, role?: string }
 ) {
   try {
+    
     await db.query(
       `UPDATE "users" 
    SET name=$1, surname=$2, telephone=$3, role=$4 
