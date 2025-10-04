@@ -113,7 +113,7 @@ while True:
                 label = class_list[cls_id]
                 if label == "car":
                     cx = (x1 + x2) // 2
-                    cy = int(y2 - 0.1 * (y2 - y1))  # จุดเกือบล่างสุด
+                    cy = int(y2 - 0.08 * (y2 - y1))  # จุดเกือบล่างสุด
                     if cv2.pointPolygonTest(poly, (cx, cy), False) >= 0:
                         occupied[i] = True
                         cv2.circle(frame, (cx, cy), 3, (0, 0, 255), -1)
