@@ -23,7 +23,7 @@ startRtspStreamFor(
   "cam1",
   process.env.RTSP_USER ?? "admin",
   process.env.RTSP_PASS ?? "L2DF3010",
-  process.env.RTSP_IP ?? "192.168.1.46",
+  process.env.RTSP_IP ?? "172.20.10.3",
   process.env.RTSP_PORT ?? "554",
   process.env.RTSP_QUALITY ?? "0"
 );
@@ -31,7 +31,7 @@ startRtspStreamFor(
   "cam2",
   process.env.RTSP_USER ?? "admin",
   process.env.RTSP_PASS ?? "L2DF3010",
-  process.env.RTSP_IP ?? "192.168.1.46",
+  process.env.RTSP_IP ?? "172.20.10.3",
   process.env.RTSP_PORT ?? "554",
   process.env.RTSP_QUALITY ?? "0"
 );

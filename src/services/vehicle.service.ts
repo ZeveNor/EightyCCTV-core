@@ -159,10 +159,18 @@ export async function unremoveVehicles({ plate }: RemoveVehicleInterface) {
 export async function getVehiclesByUserId(userId: number) {
   try {
     const sql = `
-      SELECT uv.id, uv.license_plate, uv.brand, uv.model, uv.color, uv.province, uv.created_at
+      SELECT uv.user_id,
+       uv.license_plate,
+       uv.brand,
+       uv.model,
+       uv.color,
+       uv.province,
+       uv.created_at
       FROM user_vehicles uv
-      WHERE uv.deleted_at IS NULL AND uv.user_id = $1;
+      WHERE uv.deleted_at IS NULL
+        AND uv.user_id = $1;
     `;
+
     const res = await db.query(sql, [userId]);
     return { status: 200, result: res.rows };
   } catch {

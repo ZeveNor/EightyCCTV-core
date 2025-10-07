@@ -17,6 +17,7 @@ export function roleAuth(allowed: string[]) {
       if (!row.rowCount)
         return res.status(401).json({ error: "Unauthorized" }); // ยังไม่ล็อกอิน
 
+
       if (!allowed.includes(row.rows[0].role))
         return res.status(403).json({ error: "Forbidden" }); // ไม่มีสิทธิ์ ยศไม่ถึง
 
@@ -50,8 +51,10 @@ export async function authenticateFetchRequest(request: any) {
       `SELECT id, email, name, surname, telephone, token, role FROM "users" WHERE id=$1`,
       [decoded.sub]
     );
+    console.log(users.rows[0].role);
 
-    if (users.rowCount === 0) return { ok: false, status: 401, body: { error: 'Unauthorized' } };
+
+    if (users.rowCount === 0) return { ok: false, status: 401, body: { error: 'Unauthorizessd' } };
     if (users.rows[0].token !== rawToken) return { ok: false, status: 401, body: { error: 'Unauthorized' } };
 
     const user = {

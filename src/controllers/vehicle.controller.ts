@@ -23,9 +23,9 @@ export async function handleVehicleRoutes(req: Request): Promise<Response> {
 
   if (url.pathname === "/api/vehicle/all" && req.method === "GET") {
     try {
-      if (user.role !== "admin") {
-        return withCORS(Response.json({ result: "Forbidden" }, { status: 403 }));
-      }
+      // if (user.role !== "admin" || user.role !== "staff") {
+      //   return withCORS(Response.json({ result: "Forbidden" }, { status: 403 }));
+      // }
       const result = await getAllVehicles();
       return withCORS(Response.json(result.result, { status: result.status }));
     } catch (err) {
@@ -69,9 +69,9 @@ export async function handleVehicleRoutes(req: Request): Promise<Response> {
 
   if (url.pathname === "/api/vehicle/addPlate" && req.method === "POST") {
 
-    if (user.role !== "admin") {
-      return withCORS(Response.json({ result: "Forbidden" }, { status: 403 }));
-    }
+    // if (user.role !== "admin"  || user.role !== "staff") {
+    //   return withCORS(Response.json({ result: "Forbidden" }, { status: 403 }));
+    // }
     const body = await req.json();
     if (!body.user_id || !body.plate || !body.brand || !body.model || !body.color) {
       return withCORS(Response.json({ result: "Keywords required (user_id, plate, brand, model, color)" }, { status: 400 }));
@@ -167,6 +167,7 @@ export async function handleVehicleRoutes(req: Request): Promise<Response> {
   if (url.pathname === "/api/vehicle/my" && req.method === "GET") {
     try {
       const result = await getVehiclesByUserId(user.id);
+
       return withCORS(Response.json(result.result, { status: result.status }));
     } catch (err) {
       return withCORS(Response.json({ result: "Invalid token" }, { status: 401 }));
