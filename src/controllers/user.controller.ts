@@ -14,9 +14,7 @@ export async function handleUserRoutes(req: Request): Promise<Response> {
 
     // แสดงรายชื่อผู้ใช้ (เฉพาะ admin)
     if (url.pathname === "/api/user/list" && req.method === "GET") {
-        if (user.role !== "admin") {
-            return withCORS(Response.json({ result: "Forbidden" }, { status: 403 }));
-        }
+
         const result = await getAllUsers();
         return withCORS(Response.json({ result }, { status: result.status }));
     }
@@ -40,9 +38,9 @@ export async function handleUserRoutes(req: Request): Promise<Response> {
             return withCORS(Response.json({ result: "User ID required" }, { status: 400 }));
         }
         // เฉพาะ admin เท่านั้น
-        if (user.role !== "admin") {
-            return withCORS(Response.json({ result: "Forbidden" }, { status: 403 }));
-        }
+        // if (user.role !== "admin" || user.role !== "staff") {
+        //     return withCORS(Response.json({ result: "Forbidden" }, { status: 403 }));
+        // }
         const result = await userRemove(body.id);
         return withCORS(Response.json({ result }, { status: result.status }));
     }
@@ -54,18 +52,18 @@ export async function handleUserRoutes(req: Request): Promise<Response> {
             return withCORS(Response.json({ result: "User ID required" }, { status: 400 }));
         }
         // เฉพาะ admin เท่านั้น
-        if (user.role !== "admin") {
-            return withCORS(Response.json({ result: "Forbidden" }, { status: 403 }));
-        }
+        // if (user.role !== "admin" || user.role !== "staff") {
+        //     return withCORS(Response.json({ result: "Forbidden" }, { status: 403 }));
+        // }
         const result = await userUnremove(body.id);
         return withCORS(Response.json({ result }, { status: result.status }));
     }
 
     // แก้ไขข้อมูลผู้ใช้ admin
     if (url.pathname === "/api/user/update" && req.method === "POST") {
-        if (user.role !== "admin") {
-            return withCORS(Response.json({ result: "Forbidden" }, { status: 403 }));
-        }
+        // if (user.role !== "admin" || user.role !== "staff") {
+        //     return withCORS(Response.json({ result: "Forbidden" }, { status: 403 }));
+        // }
         const body = await req.json();
         if (!body.id) {
             return withCORS(Response.json({ result: "Target user ID not found" }, { status: 400 }));
@@ -85,7 +83,7 @@ export async function handleUserRoutes(req: Request): Promise<Response> {
         }
 
         const result = await updateProfile(user.id, body);
-        return withCORS(Response.json({result}, { status: result.status }));
+        return withCORS(Response.json({ result }, { status: result.status }));
     }
 
     // 🔹 อัปโหลดรูปโปรไฟล์

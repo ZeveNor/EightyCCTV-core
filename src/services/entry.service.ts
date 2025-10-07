@@ -27,6 +27,26 @@ export async function getEntryByPlate(plate: string) {
   }
 }
 
+export async function getEntryByUserId(userId: string) {
+  try {
+    const sql = `
+      SELECT * FROM vehicle_logs vl
+      INNER JOIN user_vehicles uv
+        ON vl.license_plate = uv.license_plate
+        AND vl.province = uv.province
+      WHERE uv.user_id = $1
+      ORDER BY vl.entry_time DESC;
+    `;
+
+    const res = await db.query(sql, [userId]);
+    return { status: 200, result: res.rows };
+  } catch (e) {
+    console.error(e);
+    return { status: 400, result: "Get vehicle entries by user failed" };
+  }
+}
+
+
 export async function startEntry(plate: string) {
   try {
     const sql = `INSERT INTO vehicle_logs (license_plate, entry_time) VALUES ($1, NOW()) RETURNING *;`;
@@ -63,8 +83,6 @@ const provinceMap = {
   NMA: "นครราชสีมา",
   // ... เพิ่มจังหวัดอื่นๆตามที่ต้องการ
 };
-
-
 
 const characterThai: Record<string, string> = {
   A01: "ก", A02: "ข", A03: "ฃ", A04: "ค", A05: "ฅ", A06: "ฆ",
@@ -120,7 +138,6 @@ export async function postData(type: string) {
   }
   else if (type === "false") {
     const sql = `UPDATE vehicle_logs SET exit_time = NOW() WHERE license_plate = $1 AND exit_time IS NULL RETURNING *;`;
-    console.log(licensePlate);
     const values = [licensePlate];
     response = await db.query(sql, values);
 

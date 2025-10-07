@@ -62,6 +62,7 @@ export async function register({
             `SELECT 1 FROM "users" WHERE email=$1 OR telephone=$2`,
             [email, telephone]
         );
+
         if ((exists.rowCount ?? 0) > 0) {
             return { status: 400, result: "Email or telephone already exists" };
         }
@@ -77,7 +78,7 @@ export async function register({
 
         const hash = await bcrypt.hash(password, 12);
 
-        await db.query(
+        const res = await db.query(
             `INSERT INTO "users"(name,surname,email,password,telephone,token,created_at) VALUES ($1,$2,$3,$4,$5,'',NOW()) RETURNING id`,
             [name, surname, email, hash, telephone]
         )
@@ -92,16 +93,16 @@ export async function register({
 export async function login({ email, password }: { email: string; password: string }) {
     try {
         const users = await db.query(`SELECT * FROM "users" WHERE email=$1`, [email]);
-        
+
         if (users.rowCount === 0) return { status: 400, result: "Invalid credentials" };
-        
-        if (users.rows[0].deleted_at) return { status: 400, result: "Account is removed" }; 
+
+        if (users.rows[0].deleted_at) return { status: 400, result: "Account is removed" };
 
         const user = users.rows[0]
         const valid = await bcrypt.compare(password, user.password)
-        if (!valid) return { status: 400, result: "Invalid credentials" }
+        if (!valid) return { status: 400, result: "Password Wrong" }
 
-        const token = generateToken({ sub: user.id })
+        const token = generateToken({ sub: user.id, role: user.role });
         await db.query(`UPDATE "users" SET token=$1 WHERE id=$2`, [token, user.id])
 
         return {
@@ -135,7 +136,7 @@ export async function forgotPassword({ email }: { email: string }) {
             [email, token, expires_at]
         );
 
-        await sendMail(email, "Reset Password", `Click here to reset: ${process.env.FRONTEND_URL}/reset?token=${token}`);
+        await sendMail(email, "Reset Password", `Click here to reset: ${process.env.FRONTEND_URL}/changepass?token=${token}`);
         return { status: 200, result: "Reset link sent to email" };
     } catch (e) {
         return { status: 400, result: "Failed to send reset link" };
@@ -162,8 +163,6 @@ export async function resetPassword({ token, newPassword }: { token: string; new
 
         return { status: 200, result: "Password reset successful" };
     } catch (e) {
-        console.log(e);
-
         return { status: 400, result: "Failed to reset password" };
     }
 }

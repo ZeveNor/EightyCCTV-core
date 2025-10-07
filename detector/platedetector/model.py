@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|stimeout;10000000"
-url = "rtsp://admin:L2DF3010@192.168.139.132:554/cam/realmonitor?channel=1&subtype=1"
+url = "rtsp://admin:L2DF3010@172.2.10.3:554/cam/realmonitor?channel=1&subtype=1"
 
 # initialize the client
 CLIENT = InferenceHTTPClient(
