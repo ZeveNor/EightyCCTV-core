@@ -6,6 +6,7 @@ import {
   getLastestEntry,
   postData,
   UploadImage,
+  getEntryByUserId,
 } from "../services/entry.service";
 import { withCORS } from "../utils/cors";
 
@@ -24,6 +25,16 @@ export async function handleEntryRoutes(req: Request): Promise<Response> {
     }
 
     const result = await getEntryByPlate(body.plate);
+    return withCORS(Response.json({ result }));
+  }
+
+  if (url.pathname === "/api/entry/vehicle/byUserId" && req.method === "POST") {
+    const body = await req.json();
+    if (!body.userId) {
+      return withCORS(Response.json({ result: "User ID required" }, { status: 400 }));
+    }
+
+    const result = await getEntryByUserId(body.userId);
     return withCORS(Response.json({ result }));
   }
 

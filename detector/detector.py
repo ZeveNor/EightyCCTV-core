@@ -9,7 +9,7 @@ import time
 
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|stimeout;10000000"
 model = YOLO('best.pt')  
-url = "rtsp://admin:L2DF3010@192.168.139.132:554/cam/realmonitor?channel=1&subtype=1"
+url = "rtsp://admin:L2DF3010@172.20.10.3:554/cam/realmonitor?channel=1&subtype=1"
 # cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
 cap = cv2.VideoCapture('13_15_54.mp4')
 SLOTS_FILE = "slots.json"
